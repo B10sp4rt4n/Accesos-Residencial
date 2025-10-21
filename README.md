@@ -14,6 +14,16 @@ Nota sobre reproducibilidad
 
 Se han fijado versiones básicas en `requirements.txt` para evitar sorpresas en Cloud. Si quieres actualizar a versiones más recientes, edita `requirements.txt` y crea un nuevo commit.
 
+Index local
+
+Se añadió `index.py` como índice para probar y navegar localmente entre los módulos (Dashboard, Eventos, Personas, Vehículos, Políticas). Ejecuta:
+
+```bash
+streamlit run index.py
+```
+
+También puedes usar `index.py` para enlazar a las apps desplegadas si defines las URLs en Streamlit Cloud Secrets (`DASHBOARD_URL`, `EVENTOS_URL`, `PERSONAS_URL`, `VEHICULOS_URL`, `POLITICAS_URL`, `REPO_URL`).
+
 Ejecución local
 
 1. Crear un entorno virtual e instalar dependencias:
