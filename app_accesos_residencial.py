@@ -269,8 +269,17 @@ def render_eventos_live(eventos_mock, personas_mock, vehiculos_mock, policies_mo
         df = pd.DataFrame(eventos_live[:100])
         placeholder.dataframe(df, width='stretch', hide_index=True)
 
-    # Instrucción para refrescar la página automáticamente
-    st.experimental_rerun()
+    # Proveer un botón de refresco en lugar de forzar un rerun automático
+    # porque en algunos entornos (versión de Streamlit en Cloud)
+    # `st.experimental_rerun` puede no estar disponible o lanzar errores.
+    if hasattr(st, "experimental_rerun"):
+        if st.button("Refrescar ahora"):
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.info("No se pudo ejecutar el re-run automático; refresca la página manualmente.")
+    else:
+        st.info("Auto-refresco no disponible en este entorno. Por favor refresca la página manualmente.")
 
 
 def render_personas(eventos_mock, personas_mock, vehiculos_mock, policies_mock):
