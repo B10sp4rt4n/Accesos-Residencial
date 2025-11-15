@@ -1,54 +1,146 @@
+# index.py
+"""
+Sistema de Control de Accesos Residencial
+Arquitectura AUP-EXO
+"""
+
 import streamlit as st
-from app_accesos_residencial import (
-    get_mock_data,
-    render_dashboard,
-    render_eventos_live,
-    render_personas,
-    render_vehiculos,
-    render_politicas,
+from modulos.vigilancia import ui_vigilancia
+from modulos.entidades_ui import ui_entidades
+from modulos.eventos import ui_eventos
+from modulos.politicas import ui_politicas
+from modulos.dashboard import ui_dashboard
+
+# Configuración de página
+st.set_page_config(
+    page_title="Accesos Residencial - AUP-EXO",
+    page_icon="🏠",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.set_page_config(page_title="Index · Caseta", layout="wide")
+# Sidebar - Menú principal
+st.sidebar.title("🏠 Accesos Residencial")
+st.sidebar.markdown("**Sistema AUP-EXO**")
+st.sidebar.divider()
 
-st.title("Caseta · Consola — Index")
-st.write("Usa este índice para navegar localmente entre los módulos o para acceder a las URLs desplegadas (si las has configurado en Streamlit Cloud `Secrets`).")
+opcion = st.sidebar.radio(
+    "Seleccione módulo:",
+    [
+        "🚧 Control de Accesos",
+        "🏢 Registro de Entidades",
+        "📊 Historial de Eventos",
+        "📋 Políticas y Reglas",
+        "📈 Dashboard AUP-EXO",
+        "ℹ️ Acerca del Sistema"
+    ]
+)
 
-mode = st.sidebar.radio("Modo", ["Local (render)", "Enlaces desplegadas"])
+st.sidebar.divider()
 
-eventos_mock, personas_mock, vehiculos_mock, policies_mock = get_mock_data()
+# Información del sistema en sidebar
+with st.sidebar.expander("📌 Información"):
+    st.caption("**Versión:** 2.0.0-aup-exo")
+    st.caption("**Arquitectura:** AUP-EXO")
+    st.caption("**Fases completadas:** A, A.1, A.2, A.3, A.4, A.5")
 
-if mode == "Local (render)":
-    app = st.sidebar.selectbox("Abrir módulo local:", ["Dashboard", "Eventos (en vivo)", "Personas", "Vehículos", "Políticas"])
-    if app == "Dashboard":
-        render_dashboard(eventos_mock, personas_mock, vehiculos_mock, policies_mock)
-    elif app == "Eventos (en vivo)":
-        render_eventos_live(eventos_mock, personas_mock, vehiculos_mock, policies_mock)
-    elif app == "Personas":
-        render_personas(eventos_mock, personas_mock, vehiculos_mock, policies_mock)
-    elif app == "Vehículos":
-        render_vehiculos(eventos_mock, personas_mock, vehiculos_mock, policies_mock)
-    elif app == "Políticas":
-        render_politicas(eventos_mock, personas_mock, vehiculos_mock, policies_mock)
+# Renderizado según selección
+if opcion == "🚧 Control de Accesos":
+    ui_vigilancia()
 
-else:
-    st.header("Enlaces a apps desplegadas")
-    st.write("Si ya desplegaste las apps en Streamlit Cloud, añade las URLs en Settings → Secrets como `DASHBOARD_URL`, `EVENTOS_URL`, `PERSONAS_URL`, `VEHICULOS_URL`, `POLITICAS_URL`.")
+elif opcion == "🏢 Registro de Entidades":
+    ui_entidades()
 
-    urls = {
-        "Dashboard": st.secrets.get("DASHBOARD_URL", ""),
-        "Eventos (en vivo)": st.secrets.get("EVENTOS_URL", ""),
-        "Personas": st.secrets.get("PERSONAS_URL", ""),
-        "Vehículos": st.secrets.get("VEHICULOS_URL", ""),
-        "Políticas": st.secrets.get("POLITICAS_URL", ""),
-    }
+elif opcion == "📊 Historial de Eventos":
+    ui_eventos()
 
-    for name, url in urls.items():
-        if url:
-            st.markdown(f"- **{name}**: [{url}]({url})")
-        else:
-            st.markdown(f"- **{name}**: _No definida. Añade `{name.upper().split()[0]}_URL` en Secrets_")
+elif opcion == "📋 Políticas y Reglas":
+    ui_politicas()
 
-    st.markdown("---")
-    st.write("También puedes usar el enlace al repositorio para crear apps manualmente en Streamlit Cloud:")
-    repo_url = st.secrets.get("REPO_URL", "https://github.com/B10sp4rt4n/Accesos-Residencial")
-    st.markdown(f"- Repositorio: [{repo_url}]({repo_url})")
+elif opcion == "📈 Dashboard AUP-EXO":
+    ui_dashboard()
+
+elif opcion == "ℹ️ Acerca del Sistema":
+    st.header("ℹ️ Acerca del Sistema")
+    
+    st.markdown("""
+    ## Sistema de Control de Accesos Residencial
+    
+    **Arquitectura:** AUP-EXO (Arquitectura Universal Plataforma - Experiencia Optimizada)
+    
+    ### 🎯 Características Principales
+    
+    ✅ **Modelo Universal de Entidades**
+    - Personas, vehículos, visitas y proveedores en una sola tabla
+    - Atributos parametrizables en JSON
+    - Sin cambios de schema para nuevos tipos
+    
+    ✅ **Trazabilidad Completa**
+    - Hash SHA-256 en cada operación
+    - Encadenamiento estilo blockchain
+    - Recibo Recordia (certificación externa)
+    
+    ✅ **Orquestador Centralizado**
+    - Todas las operaciones pasan por validación
+    - Evaluación de políticas automática
+    - Registro estructural de eventos
+    
+    ✅ **Buscador Universal**
+    - Búsqueda por nombre, placa, folio, QR, teléfono
+    - Sin navegar entre pantallas
+    - Resultados instantáneos
+    
+    ### 📦 Módulos Implementados
+    
+    | Módulo | Estado | Descripción |
+    |--------|--------|-------------|
+    | **Entidades** | ✅ Completado | Registro universal de entidades |
+    | **Vigilancia** | ✅ Completado | Control de accesos con orquestador |
+    | **Eventos** | ✅ Completado | Historial y auditoría |
+    | **Políticas** | ✅ Completado | Gestión de reglas parametrizadas |
+    
+    ### 🚀 Ventajas del Diseño AUP-EXO
+    
+    1. **Escalabilidad sin refactoring**
+       - Agregar drones, sensores, IoT sin tocar schema
+    
+    2. **Trazabilidad inmutable**
+       - Cadena de hash imposible de alterar
+       - Certificación jurídica externa
+    
+    3. **Políticas parametrizadas**
+       - Cambios sin deployment
+       - Configuración en tiempo real
+    
+    4. **Modelo mental simple**
+       - Todo es una ENTIDAD
+       - Todo genera un EVENTO
+       - Todo pasa por ORQUESTADOR
+    
+    ### 📊 Estado del Sistema
+    
+    **Fases Completadas:**
+    - ✅ FASE A: Infraestructura Core
+    - ✅ FASE A.1: Vigilancia AUP-EXO
+    - ✅ FASE A.2: UI Universal de Entidades
+    - ✅ FASE A.3: Migración y Limpieza
+    - ✅ FASE A.4: Historial de Eventos
+    - ✅ FASE A.5: Políticas Parametrizadas
+    
+    **Próximas Fases:**
+    - ⏳ FASE B: Módulos complementarios
+    - ⏳ FASE C: Testing & Integración
+    - ⏳ FASE D: Supabase Migration
+    - ⏳ FASE E: Recordia-Bridge producción
+    
+    ### 🔗 Enlaces
+    
+    - [Documentación AUP-EXO](./DISENO_AUP_EXO.md)
+    - [Estado del Sistema](./ESTADO_SISTEMA.md)
+    - [Roadmap](./PROGRESO.md)
+    
+    ---
+    
+    **Desarrollado con:** Python 3.12+ | Streamlit | SQLite | SHA-256  
+    **Última actualización:** 15 de noviembre de 2025
+    """)
