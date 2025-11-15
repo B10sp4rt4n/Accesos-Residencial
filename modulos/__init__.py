@@ -17,6 +17,15 @@ from .entidades import (
     render_vehiculos
 )
 
+# Módulo de vigilancia
+from .vigilancia import (
+    buscar_entidad,
+    obtener_eventos_recientes,
+    ui_vigilancia,
+    ui_resumen_vigilancia,
+    render_vigilancia
+)
+
 # Módulos legacy (compatibilidad)
 try:
     from .accesos import *
@@ -25,11 +34,6 @@ except ImportError:
 
 try:
     from .eventos import *
-except ImportError:
-    pass
-
-try:
-    from .vigilancia import *
 except ImportError:
     pass
 
@@ -48,11 +52,16 @@ __all__ = [
     'desactivar_entidad',
     'reactivar_entidad',
     'ui_gestion_entidades',
+    # Funciones del módulo de vigilancia
+    'buscar_entidad',
+    'obtener_eventos_recientes',
+    'ui_vigilancia',
+    'ui_resumen_vigilancia',
     # Aliases de compatibilidad
     'render_personas',
     'render_vehiculos',
+    'render_vigilancia',
     # Legacy
     'render_eventos',
-    'render_vigilancia',
     'render_politicas'
 ]
