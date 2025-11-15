@@ -17,6 +17,11 @@ from .entidades import (
     render_vehiculos
 )
 
+# UI universal de entidades
+from .entidades_ui import (
+    ui_entidades
+)
+
 # Módulo de vigilancia
 from .vigilancia import (
     buscar_entidad,
@@ -43,7 +48,7 @@ except ImportError:
     pass
 
 __all__ = [
-    # Funciones del módulo de entidades
+    # Funciones del módulo de entidades (backend)
     'crear_entidad',
     'obtener_entidades',
     'obtener_entidad_por_id',
@@ -52,6 +57,8 @@ __all__ = [
     'desactivar_entidad',
     'reactivar_entidad',
     'ui_gestion_entidades',
+    # UI universal de entidades
+    'ui_entidades',
     # Funciones del módulo de vigilancia
     'buscar_entidad',
     'obtener_eventos_recientes',
