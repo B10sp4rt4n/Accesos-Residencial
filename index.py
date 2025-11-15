@@ -9,6 +9,7 @@ from modulos.vigilancia import ui_vigilancia
 from modulos.entidades_ui import ui_entidades
 from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
+from modulos.dashboard import ui_dashboard
 
 # Configuración de página
 st.set_page_config(
@@ -30,6 +31,7 @@ opcion = st.sidebar.radio(
         "🏢 Registro de Entidades",
         "📊 Historial de Eventos",
         "📋 Políticas y Reglas",
+        "📈 Dashboard AUP-EXO",
         "ℹ️ Acerca del Sistema"
     ]
 )
@@ -54,6 +56,9 @@ elif opcion == "📊 Historial de Eventos":
 
 elif opcion == "📋 Políticas y Reglas":
     ui_politicas()
+
+elif opcion == "📈 Dashboard AUP-EXO":
+    ui_dashboard()
 
 elif opcion == "ℹ️ Acerca del Sistema":
     st.header("ℹ️ Acerca del Sistema")

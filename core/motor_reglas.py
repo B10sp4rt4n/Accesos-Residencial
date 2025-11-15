@@ -1,338 +1,194 @@
+# core/motor_reglas.py
 """
-core/motor_reglas.py
-Motor de evaluación de políticas y reglas de negocio
+Motor de reglas (POLÍTICAS) – AUP-EXO
+Evalúa si una entidad puede acceder según las políticas configuradas.
 """
 
 import json
-from datetime import datetime, time as dt_time
-from typing import Dict, Any, List
+from datetime import datetime, time
 from core.db import get_db
 
 
-class ResultadoEvaluacion:
-    """Resultado de evaluación de reglas"""
-    def __init__(self, permitido: bool, motivo: str = None, acciones: List[str] = None):
-        self.permitido = permitido
-        self.motivo = motivo
-        self.acciones = acciones or []
-        self.politicas_aplicadas = []
-    
-    def to_dict(self):
-        return {
-            "permitido": self.permitido,
-            "motivo": self.motivo,
-            "acciones": self.acciones,
-            "politicas_aplicadas": self.politicas_aplicadas
-        }
+def _hora_en_rango(hora_str, desde_str, hasta_str):
+    """
+    Verifica si una hora está dentro de un rango [desde, hasta].
+    Formato esperado: 'HH:MM'
+    """
+    try:
+        h = datetime.strptime(hora_str, "%H:%M").time()
+        desde = datetime.strptime(desde_str, "%H:%M").time()
+        hasta = datetime.strptime(hasta_str, "%H:%M").time()
+    except Exception:
+        # Si hay error de formato, no bloqueamos por horario
+        return True
+
+    # Caso simple sin pasar por medianoche
+    if desde <= hasta:
+        return desde <= h <= hasta
+    # Caso donde el rango cruza medianoche
+    return h >= desde or h <= hasta
 
 
-def evaluar_reglas(entidad_id: str, metadata: dict) -> Dict[str, Any]:
+def _contar_visitas_hoy(entidad_id, fecha_str):
     """
-    Evalúa todas las reglas aplicables a una entidad
-    
-    Args:
-        entidad_id: ID de la entidad (persona, vehículo, etc.)
-        metadata: Datos del contexto (hora, gate, tipo_acceso, etc.)
-    
-    Returns:
-        Dict con resultado de evaluación
+    Cuenta cuántas veces ha tenido eventos de 'entrada' la entidad
+    en la fecha indicada (YYYY-MM-DD).
     """
-    resultado = ResultadoEvaluacion(permitido=True)
-    
-    # Obtener información de la entidad
     with get_db() as db:
-        entidad = db.execute("""
+        rows = db.execute("""
+            SELECT COUNT(*) as total
+            FROM eventos
+            WHERE entidad_id = ?
+              AND tipo_evento = 'entrada'
+              AND DATE(timestamp_servidor) = DATE(?)
+        """, (entidad_id, fecha_str)).fetchone()
+
+    return rows["total"] if rows else 0
+
+
+def _obtener_entidad(entidad_id):
+    with get_db() as db:
+        row = db.execute("""
             SELECT * FROM entidades WHERE entidad_id = ?
         """, (entidad_id,)).fetchone()
-        
-        if not entidad:
-            # Entidad no encontrada - denegar por defecto
-            resultado.permitido = False
-            resultado.motivo = "Entidad no encontrada en el sistema"
-            return resultado.to_dict()
-        
-        # Convertir sqlite3.Row a dict
-        entidad_dict = dict(entidad)
-        entidad_attrs = json.loads(entidad_dict['atributos'])
-        
-        # Verificar estado de entidad
-        if entidad['estado'] != 'activo':
-            resultado.permitido = False
-            resultado.motivo = f"Entidad en estado: {entidad['estado']}"
-            return resultado.to_dict()
-        
-        # Obtener políticas activas aplicables
-        politicas = db.execute("""
+    return dict(row) if row else None
+
+
+def _obtener_politicas_activas():
+    with get_db() as db:
+        rows = db.execute("""
             SELECT * FROM politicas
             WHERE estado = 'activa'
-            ORDER BY prioridad DESC
+            ORDER BY prioridad ASC
         """).fetchall()
-    
-    # Evaluar cada política
-    for politica in politicas:
-        condiciones = json.loads(politica['condiciones'])
-        
-        # Verificar si aplica a esta entidad
-        if politica['aplicable_a']:
-            aplicable_a = politica['aplicable_a']  # Es un string simple, no JSON
-            # Si no es "global", verificar tipo de entidad
-            if aplicable_a != "global" and entidad_dict.get('tipo') != aplicable_a:
+    return [dict(r) for r in rows]
+
+
+def evaluar_reglas(entidad_id, metadata):
+    """
+    Evalúa las políticas activas para la entidad y contexto dados.
+
+    Devuelve:
+        {
+            "permitido": True/False,
+            "motivo": str o None,
+            "politica_aplicada": str o None
+        }
+    """
+    entidad = _obtener_entidad(entidad_id)
+    if not entidad:
+        return {
+            "permitido": False,
+            "motivo": "Entidad no encontrada.",
+            "politica_aplicada": None
+        }
+
+    # Parsear atributos JSON de la entidad
+    try:
+        atributos = json.loads(entidad.get("atributos", "{}"))
+    except json.JSONDecodeError:
+        atributos = {}
+
+    tipo_entidad = entidad.get("tipo")
+    fecha = metadata.get("fecha", datetime.now().strftime("%Y-%m-%d"))
+    hora = metadata.get("hora", datetime.now().strftime("%H:%M"))
+
+    politicas = _obtener_politicas_activas()
+
+    # Si no hay políticas, permitimos por defecto
+    if not politicas:
+        return {
+            "permitido": True,
+            "motivo": None,
+            "politica_aplicada": None
+        }
+
+    for pol in politicas:
+        try:
+            condiciones_raw = pol.get("condiciones", "{}")
+            condiciones = json.loads(condiciones_raw) if condiciones_raw else {}
+        except json.JSONDecodeError:
+            # Si la política tiene JSON roto, la ignoramos
+            continue
+
+        # Si condiciones es una lista, convertir a dict para compatibilidad
+        if isinstance(condiciones, list):
+            # Lista de condiciones - tomar la primera si existe
+            if condiciones and len(condiciones) > 0:
+                condiciones = condiciones[0]
+            else:
                 continue
         
-        # Evaluar condiciones
-        # condiciones es una lista de condiciones individuales
-        for condicion in condiciones:
-            resultado_condicion = evaluar_condicion_individual(condicion, entidad_attrs, metadata)
-            
-            if not resultado_condicion['cumple']:
-                resultado.permitido = False
-                resultado.motivo = resultado_condicion['motivo']
-                resultado.politicas_aplicadas.append(politica['politica_id'])
-                
-                # Registrar en log de reglas
-                registrar_log_regla(None, politica['politica_id'], resultado_condicion)
-                
-                # Si la política es crítica, detener evaluación
-                if politica['prioridad'] >= 9:
-                    break
-                
-                # Salir del loop de condiciones de esta política
-                break
-    
-    return resultado.to_dict()
+        # 1) Filtro por aplicable_a
+        aplicable_a = pol.get("aplicable_a", "global")
+        if aplicable_a != "global":
+            # Si la política es específica de un tipo, verificar
+            if aplicable_a != tipo_entidad:
+                continue  # Esta política no aplica a este tipo
 
+        # 2) Filtro por tipo_entidad en condiciones (soporte legacy)
+        tipo_objetivo = condiciones.get("tipo_entidad")
+        if tipo_objetivo and tipo_objetivo != tipo_entidad:
+            continue  # Esta política no aplica a este tipo
 
-def evaluar_condicion_individual(condicion: dict, entidad_attrs: dict, metadata: dict) -> dict:
-    """
-    Evalúa una condición individual
-    
-    Tipos de condiciones:
-    - tipo: "horario" con hora_inicio, hora_fin
-    - tipo: "dias_semana" con dias_permitidos
-    - tipo: "lista_negra"
-    - tipo: "autorizacion_previa"
-    """
-    tipo = condicion.get('tipo')
-    
-    # Condición de horario
-    if tipo == "horario":
-        hora_actual = metadata.get('hora', datetime.now().strftime("%H:%M"))
-        hora_inicio = condicion['hora_inicio']
-        hora_fin = condicion['hora_fin']
-        
-        if not esta_en_horario(hora_actual, hora_inicio, hora_fin):
-            return {
-                "cumple": False,
-                "motivo": f"Fuera de horario permitido ({hora_inicio}-{hora_fin})"
-            }
-    
-    # Condición de días de semana
-    elif tipo == "dias_semana":
-        dia_actual = metadata.get('dia', datetime.now().strftime("%A").lower())
-        dias_map = {
-            "monday": "lunes", "tuesday": "martes", "wednesday": "miercoles",
-            "thursday": "jueves", "friday": "viernes", "saturday": "sabado", "sunday": "domingo"
-        }
-        dia_es = dias_map.get(dia_actual, dia_actual)
-        
-        if dia_es not in condicion['dias_permitidos']:
-            return {
-                "cumple": False,
-                "motivo": f"Día no permitido: {dia_es}"
-            }
-    
-    # Condición de lista negra
-    elif tipo == "lista_negra":
-        if entidad_attrs.get('lista_negra') or metadata.get('lista_negra'):
-            return {
-                "cumple": False,
-                "motivo": "Entidad en lista negra"
-            }
-    
-    # Condición de autorización previa
-    elif tipo == "autorizacion_previa":
-        if not metadata.get('tiene_autorizacion'):
-            return {
-                "cumple": False,
-                "motivo": f"Requiere autorización previa: {condicion.get('metodo', 'general')}"
-            }
-    
-    # Condición cumplida
+        # 3) Restricción de horario
+        restriccion_horario = condiciones.get("restriccion_horario")
+        if restriccion_horario:
+            desde = restriccion_horario.get("desde", "00:00")
+            hasta = restriccion_horario.get("hasta", "23:59")
+            if not _hora_en_rango(hora, desde, hasta):
+                return {
+                    "permitido": False,
+                    "motivo": f"Horario restringido por política '{pol['nombre']}'.",
+                    "politica_aplicada": pol["nombre"]
+                }
+
+        # 4) Horario alternativo (tipo: horario con hora_inicio/hora_fin)
+        if condiciones.get("tipo") == "horario":
+            hora_inicio = condiciones.get("hora_inicio", "00:00")
+            hora_fin = condiciones.get("hora_fin", "23:59")
+            if not _hora_en_rango(hora, hora_inicio, hora_fin):
+                return {
+                    "permitido": False,
+                    "motivo": f"Horario restringido por política '{pol['nombre']}' ({hora_inicio}-{hora_fin}).",
+                    "politica_aplicada": pol["nombre"]
+                }
+
+        # 5) Límite de visitas por día
+        max_visitas_dia = condiciones.get("max_visitas_dia")
+        if max_visitas_dia is not None:
+            visitas_hoy = _contar_visitas_hoy(entidad_id, fecha)
+            if visitas_hoy >= max_visitas_dia:
+                return {
+                    "permitido": False,
+                    "motivo": f"Límite de visitas diarias alcanzado ({visitas_hoy}/{max_visitas_dia}) por política '{pol['nombre']}'.",
+                    "politica_aplicada": pol["nombre"]
+                }
+
+        # 6) Requiere autorización
+        requiere_aut = condiciones.get("requiere_autorizacion")
+        if requiere_aut:
+            # Verificar si viene autorizado en metadata
+            if not metadata.get("autorizado"):
+                return {
+                    "permitido": False,
+                    "motivo": f"Requiere autorización previa según política '{pol['nombre']}'.",
+                    "politica_aplicada": pol["nombre"]
+                }
+
+        # 7) Lista negra
+        if condiciones.get("tipo") == "lista_negra":
+            # Verificar si la entidad está marcada en lista negra
+            if atributos.get("lista_negra") or metadata.get("lista_negra"):
+                return {
+                    "permitido": False,
+                    "motivo": f"Entidad en lista negra según política '{pol['nombre']}'.",
+                    "politica_aplicada": pol["nombre"]
+                }
+
+    # Si ninguna política bloquea, se permite
     return {
-        "cumple": True,
-        "motivo": None
+        "permitido": True,
+        "motivo": None,
+        "politica_aplicada": None
     }
-
-
-def evaluar_condiciones(condiciones: dict, entidad_attrs: dict, metadata: dict) -> dict:
-    """
-    Evalúa un conjunto de condiciones
-    
-    Condiciones soportadas:
-    - horario_permitido: {"inicio": "08:00", "fin": "20:00"}
-    - dias_permitidos: ["lunes", "martes", ...]
-    - tipo_restringido: ["visitante", "proveedor"]
-    - lista_negra: true/false
-    - requiere_autorizacion: true/false
-    - tiempo_max_estancia: 120 (minutos)
-    """
-    
-    # Horario
-    if 'horario_permitido' in condiciones:
-        horario = condiciones['horario_permitido']
-        hora_actual = metadata.get('hora', datetime.now().strftime("%H:%M"))
-        
-        if not esta_en_horario(hora_actual, horario['inicio'], horario['fin']):
-            return {
-                "cumple": False,
-                "motivo": f"Fuera de horario permitido ({horario['inicio']}-{horario['fin']})"
-            }
-    
-    # Días permitidos
-    if 'dias_permitidos' in condiciones:
-        dia_actual = metadata.get('dia', datetime.now().strftime("%A").lower())
-        dias_map = {
-            "monday": "lunes", "tuesday": "martes", "wednesday": "miercoles",
-            "thursday": "jueves", "friday": "viernes", "saturday": "sabado", "sunday": "domingo"
-        }
-        dia_es = dias_map.get(dia_actual, dia_actual)
-        
-        if dia_es not in condiciones['dias_permitidos']:
-            return {
-                "cumple": False,
-                "motivo": f"Día no permitido: {dia_es}"
-            }
-    
-    # Lista negra
-    if condiciones.get('verificar_lista_negra'):
-        if entidad_attrs.get('en_lista_negra'):
-            return {
-                "cumple": False,
-                "motivo": "Entidad en lista negra"
-            }
-    
-    # Requiere autorización
-    if condiciones.get('requiere_autorizacion'):
-        if not metadata.get('autorizado'):
-            return {
-                "cumple": False,
-                "motivo": "Requiere autorización previa"
-            }
-    
-    # Tipo restringido
-    if 'tipos_restringidos' in condiciones:
-        if entidad_attrs.get('tipo') in condiciones['tipos_restringidos']:
-            return {
-                "cumple": False,
-                "motivo": f"Tipo restringido: {entidad_attrs.get('tipo')}"
-            }
-    
-    # Límite de visitas
-    if 'max_visitas_dia' in condiciones:
-        visitas_hoy = metadata.get('visitas_hoy', 0)
-        if visitas_hoy >= condiciones['max_visitas_dia']:
-            return {
-                "cumple": False,
-                "motivo": f"Límite de visitas alcanzado ({condiciones['max_visitas_dia']})"
-            }
-    
-    # Todas las condiciones cumplidas
-    return {"cumple": True, "motivo": None}
-
-
-def esta_en_horario(hora_actual: str, hora_inicio: str, hora_fin: str) -> bool:
-    """Verifica si una hora está dentro de un rango"""
-    try:
-        h_actual = datetime.strptime(hora_actual, "%H:%M").time()
-        h_inicio = datetime.strptime(hora_inicio, "%H:%M").time()
-        h_fin = datetime.strptime(hora_fin, "%H:%M").time()
-        
-        if h_inicio <= h_fin:
-            return h_inicio <= h_actual <= h_fin
-        else:  # Cruza medianoche
-            return h_actual >= h_inicio or h_actual <= h_fin
-    except:
-        return True  # En caso de error, permitir
-
-
-def registrar_log_regla(evento_id: int, politica_id: str, resultado: dict):
-    """Registra el resultado de evaluación de una regla"""
-    with get_db() as db:
-        db.execute("""
-            INSERT INTO log_reglas (evento_id, politica_id, resultado, motivo, timestamp)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            evento_id,
-            politica_id,
-            json.dumps(resultado),
-            resultado.get('motivo'),
-            datetime.now().isoformat()
-        ))
-
-
-def crear_politica_ejemplo():
-    """Crea políticas de ejemplo"""
-    with get_db() as db:
-        politicas_ejemplo = [
-            {
-                "politica_id": "POL_HORARIO_VISITANTES",
-                "nombre": "Horario de Visitantes",
-                "descripcion": "Visitantes solo pueden ingresar de 8:00 a 20:00",
-                "tipo": "restriccion_horario",
-                "condiciones": json.dumps({
-                    "horario_permitido": {"inicio": "08:00", "fin": "20:00"}
-                }),
-                "prioridad": 7,
-                "aplicable_a": json.dumps(["visitante"]),
-            },
-            {
-                "politica_id": "POL_LISTA_NEGRA",
-                "nombre": "Verificación Lista Negra",
-                "descripcion": "Bloquear acceso a entidades en lista negra",
-                "tipo": "seguridad",
-                "condiciones": json.dumps({
-                    "verificar_lista_negra": True
-                }),
-                "prioridad": 10,
-                "aplicable_a": json.dumps(["persona", "vehiculo"]),
-            },
-            {
-                "politica_id": "POL_AUTORIZACION_PROVEEDORES",
-                "nombre": "Autorización de Proveedores",
-                "descripcion": "Proveedores requieren autorización del residente",
-                "tipo": "autorizacion",
-                "condiciones": json.dumps({
-                    "requiere_autorizacion": True
-                }),
-                "prioridad": 8,
-                "aplicable_a": json.dumps(["proveedor", "delivery"]),
-            }
-        ]
-        
-        for pol in politicas_ejemplo:
-            db.execute("""
-                INSERT OR IGNORE INTO politicas
-                (politica_id, nombre, descripcion, tipo, condiciones, prioridad, 
-                 estado, aplicable_a, fecha_creacion, fecha_actualizacion)
-                VALUES (?, ?, ?, ?, ?, ?, 'activa', ?, datetime('now'), datetime('now'))
-            """, (
-                pol['politica_id'], pol['nombre'], pol['descripcion'],
-                pol['tipo'], pol['condiciones'], pol['prioridad'],
-                pol['aplicable_a']
-            ))
-        
-        print("✅ Políticas de ejemplo creadas")
-
-
-if __name__ == "__main__":
-    from core.db import init_db
-    init_db()
-    crear_politica_ejemplo()
-    
-    # Prueba de evaluación
-    print("\n=== Prueba de Motor de Reglas ===")
-    resultado = evaluar_reglas("ENT_test", {
-        "hora": "21:00",
-        "tipo": "visitante"
-    })
-    print(f"Resultado: {resultado}")
