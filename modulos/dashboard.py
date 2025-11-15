@@ -264,3 +264,23 @@ def ui_dashboard():
     st.subheader("Últimos 20 eventos")
 
     st.dataframe(df.head(20))
+
+    # ------------------------------------------------
+    # ANÁLISIS ESTRUCTURAL AUP-EXO (RAW)
+    # ------------------------------------------------
+    st.divider()
+    st.subheader("Análisis estructural (AUP-EXO)")
+
+    res = resumen_analitico()
+
+    st.write("## T-1 vs T0")
+    st.json(res["t1_t0"])
+
+    st.write("## Anomalías detectadas")
+    if res["anomalias"]:
+        st.json(res["anomalias"])
+    else:
+        st.success("No se detectaron anomalías.")
+
+    st.write("## Eventos etiquetados (riesgo)")
+    st.dataframe(res["df_etiquetado"].head(20))
