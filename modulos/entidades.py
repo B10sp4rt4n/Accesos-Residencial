@@ -1,317 +1,483 @@
+# modulos/entidades.py
 """
-modulos/entidades.py
-Gestión de personas (residentes, visitantes, empleados) con AUP-EXO
+Módulo universal de ENTIDADES para Accesos-Residencial
+AUP-EXO: modelo estructural unificado para personas, vehículos y visitas.
 """
 
+import json
 import streamlit as st
-import pandas as pd
 from datetime import datetime
-from typing import Dict, List, Optional
-from core import get_db, OrquestadorAccesos, hash_entidad
-from core.utils import validar_curp, validar_email, validar_telefono_mexico
+from core.db import get_db
+from core.hashing import hash_evento
+
+# ------------------------------------------------------------------
+# Crear una nueva entidad
+# ------------------------------------------------------------------
+
+def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
+    """
+    Crea una nueva entidad en el sistema AUP-EXO
+    
+    Args:
+        tipo: Tipo de entidad (persona, vehiculo, visita, proveedor, etc.)
+        nombre: Nombre descriptivo de la entidad
+        identificador: Identificador único (placa, folio, teléfono, etc.)
+        atributos: Diccionario con atributos adicionales
+    
+    Returns:
+        Tupla (entidad_id, hash)
+    """
+    atributos = atributos or {}
+
+    entidad_data = {
+        "tipo": tipo,
+        "nombre": nombre,
+        "identificador": identificador,
+        "atributos": atributos,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    entidad_hash = hash_evento(entidad_data)
+    
+    # Generar ID único para la entidad
+    timestamp_str = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+    entidad_id = f"ENT_{tipo[:3].upper()}_{timestamp_str}_{entidad_hash[:8]}"
+
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO entidades (
+                entidad_id, tipo, atributos, hash_actual, 
+                fecha_creacion, fecha_actualizacion, estado
+            )
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'activo')
+        """, (
+            entidad_id,
+            tipo,
+            json.dumps({
+                "nombre": nombre,
+                "identificador": identificador,
+                **atributos
+            }),
+            entidad_hash
+        ))
+
+    return entidad_id, entidad_hash
 
 
-def render_personas():
-    """Renderiza interfaz de gestión de personas"""
-    st.header("👥 Gestión de Personas")
+# ------------------------------------------------------------------
+# Obtener todas las entidades
+# ------------------------------------------------------------------
+
+def obtener_entidades(tipo=None, estado='activo'):
+    """
+    Obtiene entidades del sistema
     
-    # Tabs principales
-    tab1, tab2, tab3 = st.tabs(["Ver Todas", "Registrar Nueva", "Buscar"])
+    Args:
+        tipo: Filtrar por tipo de entidad (opcional)
+        estado: Filtrar por estado (activo/inactivo/todos)
     
+    Returns:
+        Lista de entidades como diccionarios
+    """
+    query = "SELECT * FROM entidades WHERE 1=1"
+    params = []
+
+    if tipo:
+        query += " AND tipo = ?"
+        params.append(tipo)
+    
+    if estado and estado != 'todos':
+        query += " AND estado = ?"
+        params.append(estado)
+    
+    query += " ORDER BY fecha_creacion DESC"
+
+    with get_db() as db:
+        rows = db.execute(query, params).fetchall()
+
+    entidades = []
+    for row in rows:
+        entidad = dict(row)
+        # Parsear atributos JSON
+        if entidad.get('atributos'):
+            try:
+                entidad['atributos'] = json.loads(entidad['atributos'])
+            except:
+                entidad['atributos'] = {}
+        entidades.append(entidad)
+    
+    return entidades
+
+
+# ------------------------------------------------------------------
+# Buscar entidad por ID
+# ------------------------------------------------------------------
+
+def obtener_entidad_por_id(entidad_id):
+    """
+    Obtiene una entidad específica por su ID
+    
+    Args:
+        entidad_id: ID de la entidad
+    
+    Returns:
+        Diccionario con datos de la entidad o None
+    """
+    with get_db() as db:
+        row = db.execute(
+            "SELECT * FROM entidades WHERE entidad_id = ?",
+            (entidad_id,)
+        ).fetchone()
+    
+    if row:
+        entidad = dict(row)
+        if entidad.get('atributos'):
+            try:
+                entidad['atributos'] = json.loads(entidad['atributos'])
+            except:
+                entidad['atributos'] = {}
+        return entidad
+    return None
+
+
+# ------------------------------------------------------------------
+# Buscar entidad por identificador
+# ------------------------------------------------------------------
+
+def buscar_entidad_por_identificador(identificador, tipo=None):
+    """
+    Busca entidad por identificador (placa, folio, etc.)
+    
+    Args:
+        identificador: Identificador a buscar
+        tipo: Tipo de entidad (opcional)
+    
+    Returns:
+        Entidad encontrada o None
+    """
+    query = """
+        SELECT * FROM entidades 
+        WHERE json_extract(atributos, '$.identificador') = ? 
+        AND estado = 'activo'
+    """
+    params = [identificador]
+    
+    if tipo:
+        query += " AND tipo = ?"
+        params.append(tipo)
+    
+    with get_db() as db:
+        row = db.execute(query, params).fetchone()
+    
+    if row:
+        entidad = dict(row)
+        if entidad.get('atributos'):
+            try:
+                entidad['atributos'] = json.loads(entidad['atributos'])
+            except:
+                entidad['atributos'] = {}
+        return entidad
+    return None
+
+
+# ------------------------------------------------------------------
+# Actualizar entidad
+# ------------------------------------------------------------------
+
+def actualizar_entidad(entidad_id, nombre=None, identificador=None, atributos=None):
+    """
+    Actualiza una entidad existente preservando trazabilidad
+    
+    Args:
+        entidad_id: ID de la entidad a actualizar
+        nombre: Nuevo nombre (opcional)
+        identificador: Nuevo identificador (opcional)
+        atributos: Nuevos atributos (opcional)
+    
+    Returns:
+        Nuevo hash de la entidad
+    """
+    # Obtener entidad actual
+    entidad_actual = obtener_entidad_por_id(entidad_id)
+    if not entidad_actual:
+        raise ValueError(f"Entidad {entidad_id} no encontrada")
+    
+    # Mezclar atributos actuales con nuevos
+    atributos_actuales = entidad_actual.get('atributos', {})
+    atributos_nuevos = atributos or {}
+    
+    if nombre:
+        atributos_nuevos['nombre'] = nombre
+    if identificador:
+        atributos_nuevos['identificador'] = identificador
+    
+    atributos_finales = {**atributos_actuales, **atributos_nuevos}
+    
+    # Generar nuevo hash
+    entidad_data = {
+        "entidad_id": entidad_id,
+        "tipo": entidad_actual['tipo'],
+        "atributos": atributos_finales,
+        "timestamp": datetime.utcnow().isoformat(),
+        "hash_previo": entidad_actual['hash_actual']
+    }
+    
+    nuevo_hash = hash_evento(entidad_data)
+
+    with get_db() as db:
+        db.execute("""
+            UPDATE entidades
+            SET atributos = ?, 
+                fecha_actualizacion = CURRENT_TIMESTAMP,
+                hash_previo = hash_actual, 
+                hash_actual = ?
+            WHERE entidad_id = ?
+        """, (
+            json.dumps(atributos_finales),
+            nuevo_hash,
+            entidad_id
+        ))
+
+    return nuevo_hash
+
+
+# ------------------------------------------------------------------
+# Eliminar entidad (desactivar, no borrar físicamente)
+# ------------------------------------------------------------------
+
+def desactivar_entidad(entidad_id):
+    """
+    Desactiva una entidad sin borrarla físicamente
+    Mantiene trazabilidad completa
+    
+    Args:
+        entidad_id: ID de la entidad a desactivar
+    
+    Returns:
+        True si se desactivó correctamente
+    """
+    with get_db() as db:
+        db.execute("""
+            UPDATE entidades
+            SET estado = 'inactivo',
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE entidad_id = ?
+        """, (entidad_id,))
+
+    return True
+
+
+# ------------------------------------------------------------------
+# Reactivar entidad
+# ------------------------------------------------------------------
+
+def reactivar_entidad(entidad_id):
+    """
+    Reactiva una entidad previamente desactivada
+    
+    Args:
+        entidad_id: ID de la entidad a reactivar
+    
+    Returns:
+        True si se reactivó correctamente
+    """
+    with get_db() as db:
+        db.execute("""
+            UPDATE entidades
+            SET estado = 'activo',
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE entidad_id = ?
+        """, (entidad_id,))
+
+    return True
+
+
+# ------------------------------------------------------------------
+# Interfaz Streamlit para administración básica
+# ------------------------------------------------------------------
+
+def ui_gestion_entidades():
+    """
+    Interfaz de usuario para gestión de entidades
+    Compatible con arquitectura AUP-EXO
+    """
+    st.header("🏢 Gestión de Entidades")
+    st.markdown("**Modelo Universal AUP-EXO:** Personas, Vehículos, Visitas, Proveedores")
+
+    # Tabs para diferentes acciones
+    tab1, tab2, tab3 = st.tabs(["➕ Crear", "📋 Consultar", "✏️ Actualizar"])
+    
+    # TAB 1: CREAR ENTIDAD
     with tab1:
-        _render_lista_personas()
-    
-    with tab2:
-        _render_formulario_registro()
-    
-    with tab3:
-        _render_busqueda_personas()
-
-
-def _render_lista_personas():
-    """Lista todas las personas registradas"""
-    st.subheader("Personas Registradas")
-    
-    # Filtros
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        filtro_tipo = st.selectbox(
-            "Tipo",
-            ["Todos", "residente", "visitante", "empleado", "proveedor"]
-        )
-    with col2:
-        filtro_estado = st.selectbox(
-            "Estado",
-            ["Todos", "activo", "inactivo", "bloqueado"]
-        )
-    with col3:
-        limite = st.number_input("Mostrar registros", min_value=10, max_value=500, value=50)
-    
-    # Consultar DB
-    personas = _obtener_personas_filtradas(filtro_tipo, filtro_estado, limite)
-    
-    if not personas:
-        st.info("No hay personas registradas")
-        return
-    
-    # Mostrar métricas
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Personas", len(personas))
-    col2.metric("Residentes", len([p for p in personas if p['tipo'] == 'residente']))
-    col3.metric("Visitantes", len([p for p in personas if p['tipo'] == 'visitante']))
-    col4.metric("Activos", len([p for p in personas if p['estado'] == 'activo']))
-    
-    # DataFrame
-    df = pd.DataFrame(personas)
-    if 'created_at' in df.columns:
-        df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-    if 'updated_at' in df.columns:
-        df['updated_at'] = pd.to_datetime(df['updated_at']).dt.strftime('%d/%m/%Y %H:%M')
-    
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "id": "ID",
-            "tipo": "Tipo",
-            "nombre_completo": "Nombre Completo",
-            "curp": "CURP",
-            "telefono": "Teléfono",
-            "email": "Email",
-            "estado": "Estado",
-            "created_at": "Registro"
-        }
-    )
-    
-    # Exportar datos
-    if st.button("📥 Exportar a CSV"):
-        csv = df.to_csv(index=False)
-        st.download_button(
-            "Descargar CSV",
-            csv,
-            "personas.csv",
-            "text/csv"
-        )
-
-
-def _render_formulario_registro():
-    """Formulario para registrar nueva persona"""
-    st.subheader("Registrar Nueva Persona")
-    
-    with st.form("form_persona"):
+        st.subheader("Crear Nueva Entidad")
+        
         col1, col2 = st.columns(2)
         
         with col1:
             tipo = st.selectbox(
-                "Tipo de Persona *",
-                ["residente", "visitante", "empleado", "proveedor"]
+                "Tipo de entidad",
+                ["persona", "vehiculo", "visita", "proveedor", "trabajador", "otro"]
             )
-            nombre = st.text_input("Nombre Completo *")
-            curp = st.text_input("CURP", max_chars=18)
-            telefono = st.text_input("Teléfono", placeholder="5512345678")
+            nombre = st.text_input("Nombre / Descripción")
         
         with col2:
-            email = st.text_input("Email", placeholder="ejemplo@correo.com")
-            direccion = st.text_area("Dirección", height=100)
+            identificador = st.text_input("Identificador (placa, folio, teléfono, etc.)")
             
-            if tipo == "residente":
-                lote = st.text_input("Lote/Casa")
-                manzana = st.text_input("Manzana")
-            elif tipo == "visitante":
-                residente_autoriza = st.text_input("Residente que Autoriza")
-            
-        notas = st.text_area("Notas/Observaciones")
+        st.markdown("**Atributos Adicionales (JSON)**")
+        atributos_raw = st.text_area(
+            "Atributos opcionales",
+            value='{}',
+            height=100,
+            help="Ejemplo: {\"telefono\": \"5512345678\", \"direccion\": \"Casa 15\"}"
+        )
+
+        try:
+            atributos = json.loads(atributos_raw)
+            atributos_validos = True
+        except:
+            st.error("⚠️ Atributos mal formateados. Debe ser JSON válido.")
+            atributos_validos = False
+
+        if st.button("✅ Crear Entidad", type="primary"):
+            if not nombre:
+                st.error("El nombre es obligatorio")
+            elif not atributos_validos:
+                st.error("Corrige el formato JSON de atributos")
+            else:
+                try:
+                    entidad_id, hash_entidad = crear_entidad(
+                        tipo=tipo,
+                        nombre=nombre,
+                        identificador=identificador,
+                        atributos=atributos
+                    )
+                    st.success(f"✅ Entidad creada exitosamente")
+                    st.info(f"**ID:** `{entidad_id}`")
+                    st.info(f"**Hash:** `{hash_entidad[:16]}...`")
+                except Exception as e:
+                    st.error(f"Error al crear entidad: {str(e)}")
+    
+    # TAB 2: CONSULTAR ENTIDADES
+    with tab2:
+        st.subheader("Entidades Registradas")
         
-        submitted = st.form_submit_button("Registrar Persona")
+        col1, col2 = st.columns(2)
+        with col1:
+            filtro_tipo = st.selectbox(
+                "Filtrar por tipo",
+                ["todos", "persona", "vehiculo", "visita", "proveedor", "trabajador"],
+                key="filtro_tipo"
+            )
+        with col2:
+            filtro_estado = st.selectbox(
+                "Estado",
+                ["activo", "inactivo", "todos"],
+                key="filtro_estado"
+            )
         
-        if submitted:
-            # Validaciones
-            if not nombre or not tipo:
-                st.error("Nombre y tipo son obligatorios")
-                return
+        # Aplicar filtros
+        tipo_query = None if filtro_tipo == "todos" else filtro_tipo
+        estado_query = filtro_estado
+        
+        entidades = obtener_entidades(tipo=tipo_query, estado=estado_query)
+        
+        if entidades:
+            st.metric("Total de entidades", len(entidades))
             
-            if curp and not validar_curp(curp):
-                st.error("CURP inválida")
-                return
-            
-            if email and not validar_email(email):
-                st.error("Email inválido")
-                return
-            
-            if telefono and not validar_telefono_mexico(telefono):
-                st.error("Teléfono inválido (debe ser 10 dígitos)")
-                return
-            
-            # Registrar en DB
-            try:
-                orquestador = OrquestadorAccesos()
+            # Mostrar en tabla
+            for entidad in entidades:
+                attrs = entidad.get('atributos', {})
+                nombre_display = attrs.get('nombre', 'Sin nombre')
+                id_display = attrs.get('identificador', 'Sin ID')
                 
-                datos_adicionales = {"notas": notas}
-                if tipo == "residente":
-                    datos_adicionales["lote"] = lote
-                    datos_adicionales["manzana"] = manzana
-                elif tipo == "visitante":
-                    datos_adicionales["residente_autoriza"] = residente_autoriza
+                with st.expander(
+                    f"{entidad['tipo'].upper()} - {nombre_display} ({id_display})"
+                ):
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.write(f"**ID:** `{entidad['entidad_id']}`")
+                        st.write(f"**Tipo:** {entidad['tipo']}")
+                        st.write(f"**Estado:** {entidad['estado']}")
+                    with col_b:
+                        st.write(f"**Creado:** {entidad['fecha_creacion']}")
+                        st.write(f"**Actualizado:** {entidad['fecha_actualizacion']}")
+                        st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")
+                    
+                    st.json(attrs)
+        else:
+            st.info("📭 No hay entidades registradas con estos filtros.")
+    
+    # TAB 3: ACTUALIZAR/DESACTIVAR
+    with tab3:
+        st.subheader("Actualizar o Desactivar Entidad")
+        
+        entidad_id_actualizar = st.text_input("ID de la entidad")
+        
+        if entidad_id_actualizar:
+            entidad = obtener_entidad_por_id(entidad_id_actualizar)
+            
+            if entidad:
+                st.success(f"✅ Entidad encontrada: **{entidad['tipo']}**")
+                st.json(entidad.get('atributos', {}))
                 
-                entidad_id = orquestador.crear_entidad(
-                    tipo=tipo,
-                    nombre=nombre,
-                    curp=curp,
-                    telefono=telefono,
-                    email=email,
-                    direccion=direccion,
-                    datos_adicionales=datos_adicionales
+                st.markdown("---")
+                
+                attrs = entidad.get('atributos', {})
+                nuevo_nombre = st.text_input(
+                    "Nuevo nombre (dejar vacío para no cambiar)",
+                    value=attrs.get('nombre', '')
+                )
+                nuevo_identificador = st.text_input(
+                    "Nuevo identificador (dejar vacío para no cambiar)",
+                    value=attrs.get('identificador', '')
                 )
                 
-                st.success(f"✅ Persona registrada con ID: {entidad_id}")
-                st.balloons()
+                nuevos_atributos_raw = st.text_area(
+                    "Nuevos atributos (JSON)",
+                    value=json.dumps(attrs, indent=2),
+                    height=150
+                )
                 
-                # Mostrar hash de trazabilidad
-                with st.expander("Ver detalles de trazabilidad"):
-                    st.code(f"ID: {entidad_id}")
-                    st.code(f"Hash: {hash_entidad({'nombre': nombre, 'curp': curp})[:16]}")
+                col_update, col_deactivate = st.columns(2)
                 
-            except Exception as e:
-                st.error(f"Error al registrar: {str(e)}")
-
-
-def _render_busqueda_personas():
-    """Búsqueda de personas"""
-    st.subheader("🔍 Buscar Persona")
-    
-    criterio = st.selectbox(
-        "Buscar por",
-        ["Nombre", "CURP", "Teléfono", "Email"]
-    )
-    
-    valor = st.text_input(f"Ingrese {criterio}")
-    
-    if st.button("Buscar") and valor:
-        personas = _buscar_persona(criterio.lower(), valor)
-        
-        if not personas:
-            st.warning("No se encontraron resultados")
-            return
-        
-        st.success(f"Se encontraron {len(personas)} resultado(s)")
-        
-        for p in personas:
-            with st.expander(f"{p['nombre_completo']} - {p['tipo']}"):
-                col1, col2 = st.columns(2)
+                with col_update:
+                    if st.button("💾 Actualizar", type="primary"):
+                        try:
+                            nuevos_atributos = json.loads(nuevos_atributos_raw)
+                            nuevo_hash = actualizar_entidad(
+                                entidad_id_actualizar,
+                                nombre=nuevo_nombre if nuevo_nombre else None,
+                                identificador=nuevo_identificador if nuevo_identificador else None,
+                                atributos=nuevos_atributos
+                            )
+                            st.success(f"✅ Entidad actualizada. Nuevo hash: `{nuevo_hash[:16]}...`")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
                 
-                with col1:
-                    st.write(f"**ID:** {p['id']}")
-                    st.write(f"**Tipo:** {p['tipo']}")
-                    st.write(f"**CURP:** {p.get('curp', 'N/A')}")
-                    st.write(f"**Teléfono:** {p.get('telefono', 'N/A')}")
-                    st.write(f"**Email:** {p.get('email', 'N/A')}")
-                
-                with col2:
-                    st.write(f"**Estado:** {p['estado']}")
-                    st.write(f"**Hash:** {p.get('hash', 'N/A')[:16]}")
-                    st.write(f"**Registrado:** {pd.to_datetime(p['created_at']).strftime('%d/%m/%Y')}")
-                
-                # Acciones
-                col_a1, col_a2, col_a3 = st.columns(3)
-                with col_a1:
-                    if st.button("Ver Historial", key=f"hist_{p['id']}"):
-                        _mostrar_historial_accesos(p['id'])
-                with col_a2:
-                    if st.button("Editar", key=f"edit_{p['id']}"):
-                        st.info("Función en desarrollo")
-                with col_a3:
-                    if p['estado'] == 'activo':
-                        if st.button("Bloquear", key=f"block_{p['id']}"):
-                            _cambiar_estado_persona(p['id'], 'bloqueado')
+                with col_deactivate:
+                    if entidad['estado'] == 'activo':
+                        if st.button("🚫 Desactivar", type="secondary"):
+                            desactivar_entidad(entidad_id_actualizar)
+                            st.success("✅ Entidad desactivada")
+                            st.rerun()
                     else:
-                        if st.button("Activar", key=f"active_{p['id']}"):
-                            _cambiar_estado_persona(p['id'], 'activo')
+                        if st.button("✅ Reactivar", type="secondary"):
+                            reactivar_entidad(entidad_id_actualizar)
+                            st.success("✅ Entidad reactivada")
+                            st.rerun()
+            else:
+                st.error("❌ Entidad no encontrada")
 
 
-def _obtener_personas_filtradas(tipo: str, estado: str, limite: int) -> List[Dict]:
-    """Obtiene personas de la base de datos con filtros"""
-    with get_db() as conn:
-        query = "SELECT * FROM entidades WHERE tipo_entidad = 'persona'"
-        params = []
-        
-        if tipo != "Todos":
-            query += " AND tipo = ?"
-            params.append(tipo)
-        
-        if estado != "Todos":
-            query += " AND estado = ?"
-            params.append(estado)
-        
-        query += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limite)
-        
-        cursor = conn.execute(query, params)
-        columns = [desc[0] for desc in cursor.description]
-        
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+# ------------------------------------------------------------------
+# ALIAS para compatibilidad con código anterior
+# ------------------------------------------------------------------
 
+def render_personas():
+    """Alias de compatibilidad - redirige a ui_gestion_entidades"""
+    ui_gestion_entidades()
 
-def _buscar_persona(criterio: str, valor: str) -> List[Dict]:
-    """Busca persona por criterio"""
-    with get_db() as conn:
-        query = "SELECT * FROM entidades WHERE tipo_entidad = 'persona'"
-        
-        if criterio == "nombre":
-            query += " AND nombre_completo LIKE ?"
-            valor = f"%{valor}%"
-        elif criterio == "curp":
-            query += " AND curp = ?"
-        elif criterio == "telefono":
-            query += " AND telefono = ?"
-        elif criterio == "email":
-            query += " AND email LIKE ?"
-            valor = f"%{valor}%"
-        
-        cursor = conn.execute(query, [valor])
-        columns = [desc[0] for desc in cursor.description]
-        
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-def _cambiar_estado_persona(persona_id: int, nuevo_estado: str):
-    """Cambia el estado de una persona"""
-    with get_db() as conn:
-        conn.execute(
-            "UPDATE entidades SET estado = ?, updated_at = ? WHERE id = ?",
-            (nuevo_estado, datetime.now().isoformat(), persona_id)
-        )
-        conn.commit()
-    
-    st.success(f"Estado actualizado a: {nuevo_estado}")
-    st.rerun()
-
-
-def _mostrar_historial_accesos(persona_id: int):
-    """Muestra historial de accesos de una persona"""
-    with get_db() as conn:
-        cursor = conn.execute("""
-            SELECT * FROM eventos 
-            WHERE entidad_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT 20
-        """, (persona_id,))
-        
-        eventos = cursor.fetchall()
-        
-        if not eventos:
-            st.info("No hay accesos registrados")
-            return
-        
-        st.subheader(f"Últimos {len(eventos)} Accesos")
-        
-        for evento in eventos:
-            tipo_icon = "🟢" if evento[3] == "entrada" else "🔴"
-            resultado_icon = "✅" if evento[5] == "autorizado" else "❌"
-            
-            st.write(f"{tipo_icon} {pd.to_datetime(evento[1]).strftime('%d/%m/%Y %H:%M')} - {resultado_icon} {evento[5]}")
-
-
-if __name__ == "__main__":
-    st.set_page_config(page_title="Personas", layout="wide")
-    render_personas()
+def render_vehiculos():
+    """Alias de compatibilidad - redirige a ui_gestion_entidades"""
+    ui_gestion_entidades()
