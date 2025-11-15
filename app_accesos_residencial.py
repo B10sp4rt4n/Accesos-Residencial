@@ -6,13 +6,6 @@ import numpy as np
 # from supabase import create_client, Client
 
 st.set_page_config(page_title="Caseta · Consola", layout="wide")
-import time, pandas as pd, streamlit as st
-import random
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-import numpy as np
-
-st.set_page_config(page_title="Caseta · Consola", layout="wide")
 
 
 @st.cache_data
