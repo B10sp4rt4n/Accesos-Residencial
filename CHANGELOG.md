@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1] - 2025-11-15
+
+### 🐛 Correcciones
+
+- **app_accesos_residencial.py**: Eliminar imports y configuraciones duplicadas
+- Eliminar archivo duplicado `app_accesos_residencial` (sin extensión .py)
+- Mantener solo `app_accesos_residencial.py` como fuente única
+
 ## [1.0.0] - 2025-11-15
 
 ### ✨ Nuevo: Interfaz de Vigilante
