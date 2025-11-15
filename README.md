@@ -2,6 +2,21 @@
 
 Sistema de control de accesos para residenciales con interfaz web optimizada para tablets.
 
+## 🎯 ¿Qué es este proyecto?
+
+Sistema completo de gestión de accesos vehiculares para residenciales, diseñado para:
+- ✅ **Bajo costo**: Solo necesitas una tablet ($240)
+- ✅ **Fácil de usar**: Interfaz touch-friendly para vigilantes
+- ✅ **Sin mensualidades**: Hosting y base de datos gratuitos
+- ✅ **Escalable**: De 1 a N casetas sin cambios
+- ✅ **Completo**: Desde registro hasta reportes
+
+## 🚀 Inicio Rápido
+
+**¿Primera vez?** → Lee [INICIO-RAPIDO.md](INICIO-RAPIDO.md) para poner en producción en **1 día**.
+
+**¿Quieres entender la arquitectura?** → Lee [ARQUITECTURA.md](ARQUITECTURA.md)
+
 ## 📱 Módulos Disponibles
 
 ### 1. **Interfaz de Vigilante** (`vigilante.py`) ⭐ NUEVO
