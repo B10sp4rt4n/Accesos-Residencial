@@ -1,536 +1,473 @@
+# modulos/politicas.py
 """
-modulos/politicas.py
-Gestión de políticas de acceso con motor de reglas AUP-EXO
+POLÍTICAS (Reglas Estructurales) – AUP-EXO
+Módulo para gestionar reglas que se aplican a ENTIDADES y EVENTOS.
 """
 
-import streamlit as st
-import pandas as pd
 import json
-from datetime import datetime, time
-from typing import Dict, List, Optional
-from core import get_db, evaluar_reglas
-from core.motor_reglas import TIPOS_CONDICION
+import streamlit as st
+from datetime import datetime
+from core.db import get_db
 
 
-def render_politicas():
-    """Renderiza interfaz de gestión de políticas"""
-    st.header("📋 Políticas de Acceso")
+# ---------------------------------------------------------
+# Crear una política
+# ---------------------------------------------------------
+def crear_politica(nombre, descripcion, tipo, condiciones, prioridad=1, estado="activa", aplicable_a="global", created_by="sistema"):
+    """
+    Crea una nueva política en la base de datos.
     
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Ver Todas",
-        "Crear Nueva",
-        "Pruebas",
-        "Log de Evaluaciones"
-    ])
+    Args:
+        nombre: Nombre descriptivo de la política
+        descripcion: Explicación detallada
+        tipo: Tipo de política (acceso, restriccion, horario, etc.)
+        condiciones: Lista o dict con condiciones JSON
+        prioridad: Nivel de prioridad (0=máxima, 10=mínima)
+        estado: activa o inactiva
+        aplicable_a: global, residente, visitante, proveedor, vehiculo
+        created_by: Usuario que crea la política
+    """
+    # Generar ID único
+    with get_db() as db:
+        cursor = db.execute("SELECT COUNT(*) FROM politicas")
+        count = cursor.fetchone()[0]
+        politica_id = f"POL_{str(count + 1).zfill(3)}"
+        
+        timestamp = datetime.now().isoformat()
+        
+        db.execute("""
+            INSERT INTO politicas 
+            (politica_id, nombre, descripcion, tipo, condiciones, prioridad, estado, 
+             aplicable_a, fecha_creacion, fecha_actualizacion, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            politica_id,
+            nombre,
+            descripcion,
+            tipo,
+            json.dumps(condiciones),
+            prioridad,
+            estado,
+            aplicable_a,
+            timestamp,
+            timestamp,
+            created_by
+        ))
     
-    with tab1:
-        _render_lista_politicas()
-    
-    with tab2:
-        _render_formulario_politica()
-    
-    with tab3:
-        _render_prueba_politicas()
-    
-    with tab4:
-        _render_log_evaluaciones()
+    return politica_id
 
 
-def _render_lista_politicas():
-    """Lista todas las políticas registradas"""
-    st.subheader("Políticas Configuradas")
+# ---------------------------------------------------------
+# Obtener políticas
+# ---------------------------------------------------------
+def obtener_politicas(estado=None, tipo=None):
+    """
+    Obtiene políticas de la base de datos con filtros opcionales.
     
-    # Filtros
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        filtro_estado = st.selectbox(
-            "Estado",
-            ["Todas", "activas", "inactivas"]
-        )
-    
-    with col2:
-        filtro_prioridad = st.selectbox(
-            "Prioridad",
-            ["Todas", "critica", "alta", "media", "baja"]
-        )
-    
-    with col3:
-        filtro_tipo = st.selectbox(
-            "Tipo",
-            ["Todos", "residente", "visitante", "empleado", "proveedor", "global"]
-        )
-    
-    # Obtener políticas
-    politicas = _obtener_politicas_filtradas(filtro_estado, filtro_prioridad, filtro_tipo)
-    
-    if not politicas:
-        st.info("No hay políticas registradas")
-        return
-    
-    # Métricas
-    col1, col2, col3, col4 = st.columns(4)
-    
-    total = len(politicas)
-    activas = len([p for p in politicas if p['activa']])
-    criticas = len([p for p in politicas if p['prioridad'] == 'critica'])
-    
-    col1.metric("Total Políticas", total)
-    col2.metric("Activas", activas, delta=f"{(activas/total*100):.0f}%")
-    col3.metric("Inactivas", total - activas)
-    col4.metric("Críticas", criticas)
-    
-    # Lista de políticas
-    st.markdown("---")
-    
-    for politica in politicas:
-        _render_politica_card(politica)
-
-
-def _render_politica_card(politica: Dict):
-    """Renderiza tarjeta de política individual"""
-    
-    # Iconos según prioridad
-    prioridad_icons = {
-        "critica": "🔴",
-        "alta": "🟠",
-        "media": "🟡",
-        "baja": "🟢"
-    }
-    
-    estado_icon = "✅" if politica['activa'] else "❌"
-    prioridad_icon = prioridad_icons.get(politica['prioridad'], "⚪")
-    
-    with st.expander(
-        f"{prioridad_icon} {politica['nombre']} {estado_icon}",
-        expanded=False
-    ):
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.write(f"**Descripción:** {politica['descripcion']}")
-            st.write(f"**Tipo:** {politica['tipo_entidad']}")
-            st.write(f"**Prioridad:** {politica['prioridad']}")
-            
-            # Mostrar condiciones
-            if politica['condiciones']:
-                st.write("**Condiciones:**")
-                condiciones = json.loads(politica['condiciones'])
-                
-                for i, cond in enumerate(condiciones, 1):
-                    st.write(f"{i}. {_formatear_condicion(cond)}")
-        
-        with col2:
-            st.write(f"**Estado:** {'Activa' if politica['activa'] else 'Inactiva'}")
-            st.write(f"**Orden:** {politica['orden']}")
-            st.write(f"**Creada:** {pd.to_datetime(politica['created_at']).strftime('%d/%m/%Y')}")
-            
-            # Acciones
-            if politica['activa']:
-                if st.button("Desactivar", key=f"deact_{politica['id']}"):
-                    _cambiar_estado_politica(politica['id'], False)
-            else:
-                if st.button("Activar", key=f"act_{politica['id']}"):
-                    _cambiar_estado_politica(politica['id'], True)
-            
-            if st.button("Editar", key=f"edit_{politica['id']}"):
-                st.session_state.editando_politica = politica['id']
-            
-            if st.button("Eliminar", key=f"del_{politica['id']}"):
-                if st.confirm(f"¿Eliminar política '{politica['nombre']}'?"):
-                    _eliminar_politica(politica['id'])
-
-
-def _render_formulario_politica():
-    """Formulario para crear/editar política"""
-    st.subheader("Crear Nueva Política")
-    
-    with st.form("form_politica"):
-        # Información básica
-        st.markdown("### Información General")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            nombre = st.text_input("Nombre de la Política *")
-            tipo_entidad = st.selectbox(
-                "Aplicable a *",
-                ["global", "residente", "visitante", "empleado", "proveedor"]
-            )
-            prioridad = st.selectbox(
-                "Prioridad *",
-                ["critica", "alta", "media", "baja"]
-            )
-        
-        with col2:
-            descripcion = st.text_area("Descripción *", height=100)
-            orden = st.number_input(
-                "Orden de Evaluación",
-                min_value=1,
-                max_value=100,
-                value=10,
-                help="Las políticas se evalúan en orden ascendente"
-            )
-            activa = st.checkbox("Activar inmediatamente", value=True)
-        
-        # Condiciones
-        st.markdown("### Condiciones")
-        st.write("Define las condiciones que deben cumplirse para que esta política se aplique")
-        
-        condiciones = []
-        
-        # Condición de horario
-        st.markdown("#### 1. Restricción de Horario")
-        usar_horario = st.checkbox("Aplicar restricción de horario")
-        
-        if usar_horario:
-            col_h1, col_h2 = st.columns(2)
-            with col_h1:
-                hora_inicio = st.time_input("Hora inicio permitida", value=time(6, 0))
-            with col_h2:
-                hora_fin = st.time_input("Hora fin permitida", value=time(22, 0))
-            
-            condiciones.append({
-                "tipo": "horario",
-                "hora_inicio": hora_inicio.strftime("%H:%M"),
-                "hora_fin": hora_fin.strftime("%H:%M")
-            })
-        
-        # Condición de días
-        st.markdown("#### 2. Restricción de Días")
-        usar_dias = st.checkbox("Aplicar restricción de días")
-        
-        if usar_dias:
-            dias_permitidos = st.multiselect(
-                "Días permitidos",
-                ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"],
-                default=["lunes", "martes", "miercoles", "jueves", "viernes"]
-            )
-            
-            condiciones.append({
-                "tipo": "dias_semana",
-                "dias_permitidos": dias_permitidos
-            })
-        
-        # Condición de lista negra
-        st.markdown("#### 3. Verificación de Lista Negra")
-        verificar_lista_negra = st.checkbox("Bloquear acceso a entidades en lista negra", value=True)
-        
-        if verificar_lista_negra:
-            condiciones.append({
-                "tipo": "lista_negra",
-                "accion": "denegar"
-            })
-        
-        # Condición de autorización previa
-        st.markdown("#### 4. Autorización Previa")
-        requiere_autorizacion = st.checkbox("Requiere autorización previa")
-        
-        if requiere_autorizacion:
-            metodo = st.selectbox(
-                "Método de autorización",
-                ["residente", "administracion", "sistema"]
-            )
-            
-            condiciones.append({
-                "tipo": "autorizacion_previa",
-                "metodo": metodo
-            })
-        
-        # Condición personalizada (JSON)
-        st.markdown("#### 5. Condición Personalizada (Avanzado)")
-        usar_custom = st.checkbox("Agregar condición personalizada")
-        
-        if usar_custom:
-            json_custom = st.text_area(
-                "JSON de condición",
-                placeholder='{"tipo": "custom", "campo": "valor"}',
-                height=100
-            )
-            
-            try:
-                if json_custom:
-                    cond_custom = json.loads(json_custom)
-                    condiciones.append(cond_custom)
-            except json.JSONDecodeError:
-                st.error("JSON inválido")
-        
-        # Acción de la política
-        st.markdown("### Acción")
-        
-        accion = st.radio(
-            "¿Qué hacer cuando las condiciones se cumplen?",
-            ["permitir", "denegar", "requiere_aprobacion"]
-        )
-        
-        # Submit
-        submitted = st.form_submit_button("Crear Política", type="primary")
-        
-        if submitted:
-            if not nombre or not descripcion:
-                st.error("Nombre y descripción son obligatorios")
-                return
-            
-            # Crear política
-            try:
-                _crear_politica(
-                    nombre=nombre,
-                    descripcion=descripcion,
-                    tipo_entidad=tipo_entidad,
-                    prioridad=prioridad,
-                    condiciones=condiciones,
-                    accion=accion,
-                    orden=orden,
-                    activa=activa
-                )
-                
-                st.success(f"✅ Política '{nombre}' creada correctamente")
-                st.balloons()
-                
-            except Exception as e:
-                st.error(f"Error al crear política: {str(e)}")
-
-
-def _render_prueba_politicas():
-    """Herramienta de prueba de políticas"""
-    st.subheader("🧪 Probar Evaluación de Políticas")
-    
-    st.write("""
-    Simula un evento de acceso para ver qué políticas se aplicarían 
-    y cuál sería el resultado final.
-    """)
-    
-    with st.form("test_politicas"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            tipo_entidad_test = st.selectbox(
-                "Tipo de entidad",
-                ["residente", "visitante", "empleado", "proveedor"]
-            )
-            
-            entidad_id_test = st.number_input(
-                "ID de entidad (opcional)",
-                min_value=0,
-                value=0
-            )
-            
-            lista_negra_test = st.checkbox("Entidad en lista negra")
-        
-        with col2:
-            fecha_test = st.date_input("Fecha del acceso")
-            hora_test = st.time_input("Hora del acceso")
-            
-            tiene_autorizacion = st.checkbox("Tiene autorización previa")
-        
-        submitted_test = st.form_submit_button("🧪 Evaluar Políticas")
-        
-        if submitted_test:
-            # Construir contexto de prueba
-            contexto_prueba = {
-                "tipo_entidad": tipo_entidad_test,
-                "entidad_id": entidad_id_test if entidad_id_test > 0 else None,
-                "lista_negra": lista_negra_test,
-                "timestamp": datetime.combine(fecha_test, hora_test),
-                "tiene_autorizacion": tiene_autorizacion
-            }
-            
-            # Evaluar
-            with st.spinner("Evaluando políticas..."):
-                resultado = evaluar_reglas(
-                    tipo_entidad=tipo_entidad_test,
-                    entidad_id=entidad_id_test if entidad_id_test > 0 else None,
-                    contexto=contexto_prueba
-                )
-            
-            # Mostrar resultado
-            st.markdown("---")
-            st.subheader("Resultado de la Evaluación")
-            
-            if resultado['autorizado']:
-                st.success("✅ ACCESO AUTORIZADO")
-            else:
-                st.error("❌ ACCESO DENEGADO")
-            
-            col_r1, col_r2, col_r3 = st.columns(3)
-            
-            col_r1.metric("Políticas Evaluadas", resultado['total_evaluadas'])
-            col_r2.metric("Políticas Aplicadas", resultado['total_aplicadas'])
-            col_r3.metric("Resultado", "Autorizado" if resultado['autorizado'] else "Denegado")
-            
-            # Detalles
-            with st.expander("Ver detalles de evaluación"):
-                st.json(resultado)
-
-
-def _render_log_evaluaciones():
-    """Log de evaluaciones de políticas"""
-    st.subheader("📜 Historial de Evaluaciones")
-    
-    # Filtros
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        fecha_desde = st.date_input(
-            "Desde",
-            value=datetime.now().date() - pd.Timedelta(days=7)
-        )
-    
-    with col2:
-        fecha_hasta = st.date_input(
-            "Hasta",
-            value=datetime.now().date()
-        )
-    
-    if st.button("🔍 Buscar Evaluaciones"):
-        evaluaciones = _obtener_log_evaluaciones(fecha_desde, fecha_hasta)
-        
-        if not evaluaciones:
-            st.info("No se encontraron evaluaciones en el periodo")
-            return
-        
-        st.success(f"Se encontraron {len(evaluaciones)} evaluaciones")
-        
-        # DataFrame
-        df = pd.DataFrame(evaluaciones)
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%d/%m/%Y %H:%M:%S')
-        
-        st.dataframe(
-            df,
-            use_container_width=True,
-            column_config={
-                "id": "ID",
-                "timestamp": "Fecha/Hora",
-                "politica_id": "Política",
-                "evento_id": "Evento",
-                "resultado": "Resultado",
-                "motivo": "Motivo"
-            }
-        )
-
-
-# Funciones auxiliares
-
-def _obtener_politicas_filtradas(
-    estado: str,
-    prioridad: str,
-    tipo: str
-) -> List[Dict]:
-    """Obtiene políticas con filtros"""
-    with get_db() as conn:
+    Args:
+        estado: Filtrar por 'activa' o 'inactiva' (opcional)
+        tipo: Filtrar por tipo de política (opcional)
+    """
+    with get_db() as db:
         query = "SELECT * FROM politicas WHERE 1=1"
         params = []
         
-        if estado == "activas":
-            query += " AND activa = 1"
-        elif estado == "inactivas":
-            query += " AND activa = 0"
+        if estado:
+            query += " AND estado = ?"
+            params.append(estado)
         
-        if prioridad != "Todas":
-            query += " AND prioridad = ?"
-            params.append(prioridad)
-        
-        if tipo != "Todos":
-            query += " AND tipo_entidad = ?"
+        if tipo:
+            query += " AND tipo = ?"
             params.append(tipo)
         
-        query += " ORDER BY orden ASC, prioridad DESC"
+        query += " ORDER BY prioridad ASC, fecha_creacion DESC"
         
-        cursor = conn.execute(query, params)
-        columns = [desc[0] for desc in cursor.description]
+        rows = db.execute(query, params).fetchall()
+    
+    # Convertir a dicts y parsear condiciones JSON
+    politicas = []
+    for r in rows:
+        politica = dict(r)
         
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        # Parsear condiciones JSON
+        if politica.get('condiciones'):
+            try:
+                politica['condiciones_obj'] = json.loads(politica['condiciones'])
+            except json.JSONDecodeError:
+                politica['condiciones_obj'] = {}
+        
+        politicas.append(politica)
+    
+    return politicas
 
 
-def _crear_politica(
-    nombre: str,
-    descripcion: str,
-    tipo_entidad: str,
-    prioridad: str,
-    condiciones: List[Dict],
-    accion: str,
-    orden: int,
-    activa: bool
-):
-    """Crea nueva política"""
-    with get_db() as conn:
-        conn.execute("""
-            INSERT INTO politicas (
-                nombre, descripcion, tipo_entidad, condiciones,
-                accion, prioridad, orden, activa, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+# ---------------------------------------------------------
+# Actualizar política
+# ---------------------------------------------------------
+def actualizar_politica(politica_id, nombre=None, descripcion=None, tipo=None, 
+                       condiciones=None, prioridad=None, estado=None, aplicable_a=None):
+    """
+    Actualiza una política existente.
+    Solo actualiza los campos que se proporcionen (no None).
+    """
+    with get_db() as db:
+        # Obtener política actual
+        cursor = db.execute("SELECT * FROM politicas WHERE politica_id = ?", (politica_id,))
+        actual = cursor.fetchone()
+        
+        if not actual:
+            return False
+        
+        actual_dict = dict(actual)
+        
+        # Preparar valores actualizados
+        nuevo_nombre = nombre if nombre is not None else actual_dict['nombre']
+        nueva_desc = descripcion if descripcion is not None else actual_dict['descripcion']
+        nuevo_tipo = tipo if tipo is not None else actual_dict['tipo']
+        nuevas_cond = json.dumps(condiciones) if condiciones is not None else actual_dict['condiciones']
+        nueva_prio = prioridad if prioridad is not None else actual_dict['prioridad']
+        nuevo_estado = estado if estado is not None else actual_dict['estado']
+        nuevo_aplicable = aplicable_a if aplicable_a is not None else actual_dict['aplicable_a']
+        
+        timestamp = datetime.now().isoformat()
+        
+        db.execute("""
+            UPDATE politicas
+            SET nombre = ?, descripcion = ?, tipo = ?, condiciones = ?, 
+                prioridad = ?, estado = ?, aplicable_a = ?, fecha_actualizacion = ?
+            WHERE politica_id = ?
         """, (
-            nombre,
-            descripcion,
-            tipo_entidad,
-            json.dumps(condiciones),
-            accion,
-            prioridad,
-            orden,
-            1 if activa else 0,
-            datetime.now().isoformat()
+            nuevo_nombre,
+            nueva_desc,
+            nuevo_tipo,
+            nuevas_cond,
+            nueva_prio,
+            nuevo_estado,
+            nuevo_aplicable,
+            timestamp,
+            politica_id
         ))
-        conn.commit()
-
-
-def _cambiar_estado_politica(politica_id: int, activa: bool):
-    """Cambia el estado de una política"""
-    with get_db() as conn:
-        conn.execute(
-            "UPDATE politicas SET activa = ?, updated_at = ? WHERE id = ?",
-            (1 if activa else 0, datetime.now().isoformat(), politica_id)
-        )
-        conn.commit()
     
-    st.success(f"Política {'activada' if activa else 'desactivada'}")
-    st.rerun()
+    return True
 
 
-def _eliminar_politica(politica_id: int):
-    """Elimina una política"""
-    with get_db() as conn:
-        conn.execute("DELETE FROM politicas WHERE id = ?", (politica_id,))
-        conn.commit()
+# ---------------------------------------------------------
+# Activar/Desactivar política
+# ---------------------------------------------------------
+def cambiar_estado_politica(politica_id, nuevo_estado):
+    """
+    Activa o desactiva una política rápidamente.
+    """
+    return actualizar_politica(politica_id, estado=nuevo_estado)
+
+
+# ---------------------------------------------------------
+# UI – Gestión de políticas
+# ---------------------------------------------------------
+def ui_politicas():
+
+    st.header("📋 Gestión de Políticas (Reglas de Acceso) – AUP-EXO")
+
+    st.markdown("""
+    **Políticas** son reglas parametrizables que determinan:
+    - Quién puede acceder y cuándo
+    - Restricciones por horario
+    - Límites de visitas
+    - Listas negras/blancas
+    - Condiciones especiales
     
-    st.success("Política eliminada")
-    st.rerun()
+    Todas las políticas se evalúan automáticamente en el **Orquestador**.
+    """)
 
+    st.divider()
 
-def _formatear_condicion(condicion: Dict) -> str:
-    """Formatea una condición para mostrarla"""
-    tipo = condicion.get('tipo', 'desconocido')
-    
-    if tipo == "horario":
-        return f"Horario: {condicion['hora_inicio']} - {condicion['hora_fin']}"
-    elif tipo == "dias_semana":
-        dias = ", ".join(condicion['dias_permitidos'])
-        return f"Días: {dias}"
-    elif tipo == "lista_negra":
-        return "Verificar lista negra"
-    elif tipo == "autorizacion_previa":
-        return f"Requiere autorización: {condicion['metodo']}"
-    else:
-        return f"{tipo}: {json.dumps(condicion)}"
+    # -------------------------
+    # Tabs: Crear | Listar | Editar
+    # -------------------------
+    tab1, tab2, tab3 = st.tabs(["➕ Crear Política", "📋 Listar Políticas", "✏️ Editar/Gestionar"])
 
+    # ==========================================
+    # TAB 1: CREAR POLÍTICA
+    # ==========================================
+    with tab1:
+        st.subheader("Crear nueva política")
 
-def _obtener_log_evaluaciones(
-    fecha_desde: datetime.date,
-    fecha_hasta: datetime.date
-) -> List[Dict]:
-    """Obtiene log de evaluaciones de políticas"""
-    with get_db() as conn:
-        cursor = conn.execute("""
-            SELECT * FROM log_reglas 
-            WHERE DATE(timestamp) BETWEEN ? AND ?
-            ORDER BY timestamp DESC
-            LIMIT 500
-        """, (fecha_desde.isoformat(), fecha_hasta.isoformat()))
+        col1, col2 = st.columns(2)
+
+        with col1:
+            nombre = st.text_input("Nombre de la política*", placeholder="Ej: Acceso Proveedores 6-18h")
+            tipo = st.selectbox("Tipo de política*", [
+                "acceso",
+                "restriccion",
+                "horario",
+                "limite",
+                "aprobacion"
+            ])
+
+        with col2:
+            aplicable_a = st.selectbox("Aplicable a*", [
+                "global",
+                "residente",
+                "visitante",
+                "proveedor",
+                "vehiculo",
+                "persona"
+            ])
+            prioridad = st.number_input("Prioridad (0=máxima)", min_value=0, max_value=10, value=5)
+
+        descripcion = st.text_area("Descripción", placeholder="Explique qué hace esta política...")
+
+        st.write("**Condiciones (JSON)**")
         
-        columns = [desc[0] for desc in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        # Plantillas de ejemplo
+        plantilla = st.selectbox("Usar plantilla:", [
+            "Personalizado",
+            "Horario específico",
+            "Límite de visitas",
+            "Requiere autorización",
+            "Lista negra"
+        ])
 
+        if plantilla == "Horario específico":
+            ejemplo_condiciones = """{
+  "tipo": "horario",
+  "hora_inicio": "06:00",
+  "hora_fin": "18:00",
+  "dias": ["lunes", "martes", "miercoles", "jueves", "viernes"]
+}"""
+        elif plantilla == "Límite de visitas":
+            ejemplo_condiciones = """{
+  "tipo": "limite",
+  "max_visitas_dia": 3,
+  "max_visitas_mes": 20,
+  "accion_exceso": "denegar"
+}"""
+        elif plantilla == "Requiere autorización":
+            ejemplo_condiciones = """{
+  "tipo": "aprobacion",
+  "requiere_autorizacion": true,
+  "nivel_requerido": "supervisor",
+  "timeout_minutos": 30
+}"""
+        elif plantilla == "Lista negra":
+            ejemplo_condiciones = """{
+  "tipo": "lista_negra",
+  "accion": "denegar",
+  "motivo": "Incidente previo registrado",
+  "alerta": true
+}"""
+        else:
+            ejemplo_condiciones = """{
+  "tipo": "custom",
+  "campo": "valor"
+}"""
 
-if __name__ == "__main__":
-    st.set_page_config(page_title="Políticas", layout="wide")
-    render_politicas()
+        condiciones_raw = st.text_area(
+            "JSON de condiciones*",
+            value=ejemplo_condiciones,
+            height=250
+        )
+
+        # Validar JSON
+        condiciones_validas = False
+        try:
+            condiciones = json.loads(condiciones_raw)
+            condiciones_validas = True
+            st.success("✅ JSON válido")
+        except json.JSONDecodeError as e:
+            st.error(f"❌ JSON inválido: {e}")
+            condiciones = {}
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            estado = st.selectbox("Estado inicial", ["activa", "inactiva"])
+
+        with col2:
+            created_by = st.text_input("Creado por", value="admin")
+
+        st.divider()
+
+        if st.button("✅ Crear Política", type="primary", disabled=not condiciones_validas):
+            if not nombre:
+                st.error("El nombre es obligatorio")
+            else:
+                politica_id = crear_politica(
+                    nombre=nombre,
+                    descripcion=descripcion,
+                    tipo=tipo,
+                    condiciones=condiciones,
+                    prioridad=prioridad,
+                    estado=estado,
+                    aplicable_a=aplicable_a,
+                    created_by=created_by
+                )
+                st.success(f"✅ Política creada exitosamente: **{politica_id}**")
+                st.balloons()
+
+    # ==========================================
+    # TAB 2: LISTAR POLÍTICAS
+    # ==========================================
+    with tab2:
+        st.subheader("Políticas registradas")
+
+        # Filtros
+        col1, col2 = st.columns(2)
+
+        with col1:
+            filtro_estado = st.selectbox("Filtrar por estado", ["Todas", "activa", "inactiva"])
+
+        with col2:
+            filtro_tipo = st.selectbox("Filtrar por tipo", ["Todos", "acceso", "restriccion", "horario", "limite", "aprobacion"])
+
+        estado_filtro = None if filtro_estado == "Todas" else filtro_estado
+        tipo_filtro = None if filtro_tipo == "Todos" else filtro_tipo
+
+        politicas = obtener_politicas(estado=estado_filtro, tipo=filtro_tipo)
+
+        if not politicas:
+            st.info("No hay políticas registradas con los filtros seleccionados.")
+        else:
+            st.write(f"**Total: {len(politicas)} políticas**")
+
+            # Tabla resumen
+            tabla = []
+            for p in politicas:
+                icono_estado = "🟢" if p['estado'] == 'activa' else "🔴"
+                tabla.append({
+                    "ID": p['politica_id'],
+                    "Estado": f"{icono_estado} {p['estado']}",
+                    "Nombre": p['nombre'],
+                    "Tipo": p['tipo'],
+                    "Prioridad": p['prioridad'],
+                    "Aplicable a": p['aplicable_a'],
+                    "Creado": p['fecha_creacion'][:10]
+                })
+
+            st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+            # Detalle expandible
+            st.divider()
+            st.subheader("Detalle de política")
+
+            ids = [p["politica_id"] for p in politicas]
+            selected_id = st.selectbox("Seleccionar política:", ids)
+
+            politica_sel = next(p for p in politicas if p["politica_id"] == selected_id)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write("**Información General**")
+                st.write(f"**ID:** {politica_sel['politica_id']}")
+                st.write(f"**Nombre:** {politica_sel['nombre']}")
+                st.write(f"**Descripción:** {politica_sel['descripcion']}")
+                st.write(f"**Tipo:** {politica_sel['tipo']}")
+                st.write(f"**Aplicable a:** {politica_sel['aplicable_a']}")
+
+            with col2:
+                st.write("**Configuración**")
+                st.write(f"**Prioridad:** {politica_sel['prioridad']}")
+                st.write(f"**Estado:** {politica_sel['estado']}")
+                st.write(f"**Creado:** {politica_sel['fecha_creacion'][:19]}")
+                st.write(f"**Actualizado:** {politica_sel['fecha_actualizacion'][:19]}")
+                st.write(f"**Por:** {politica_sel['created_by']}")
+
+            st.write("**Condiciones (JSON)**")
+            st.json(politica_sel['condiciones_obj'])
+
+    # ==========================================
+    # TAB 3: EDITAR/GESTIONAR
+    # ==========================================
+    with tab3:
+        st.subheader("Editar política existente")
+
+        politicas = obtener_politicas()
+
+        if not politicas:
+            st.info("No hay políticas para editar.")
+        else:
+            ids = [p["politica_id"] for p in politicas]
+            seleccion = st.selectbox("Selecciona política por ID:", ids)
+
+            politica = next(p for p in politicas if p["politica_id"] == seleccion)
+
+            st.write(f"**Editando:** {politica['nombre']}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                nuevo_nombre = st.text_input("Nombre", value=politica["nombre"])
+                nuevo_tipo = st.selectbox(
+                    "Tipo",
+                    ["acceso", "restriccion", "horario", "limite", "aprobacion"],
+                    index=["acceso", "restriccion", "horario", "limite", "aprobacion"].index(politica["tipo"])
+                )
+
+            with col2:
+                nuevo_aplicable = st.selectbox(
+                    "Aplicable a",
+                    ["global", "residente", "visitante", "proveedor", "vehiculo", "persona"],
+                    index=["global", "residente", "visitante", "proveedor", "vehiculo", "persona"].index(politica["aplicable_a"])
+                )
+                nueva_prioridad = st.number_input(
+                    "Prioridad",
+                    min_value=0,
+                    max_value=10,
+                    value=politica["prioridad"]
+                )
+
+            nueva_desc = st.text_area("Descripción", value=politica["descripcion"])
+
+            nuevas_condiciones_raw = st.text_area(
+                "Condiciones (JSON)",
+                value=politica["condiciones"],
+                height=250
+            )
+
+            # Validar JSON
+            condiciones_validas = False
+            try:
+                nuevas_condiciones = json.loads(nuevas_condiciones_raw)
+                condiciones_validas = True
+                st.success("✅ JSON válido")
+            except json.JSONDecodeError as e:
+                st.error(f"❌ JSON inválido: {e}")
+                nuevas_condiciones = {}
+
+            nuevo_estado = st.selectbox(
+                "Estado",
+                ["activa", "inactiva"],
+                index=0 if politica["estado"] == "activa" else 1
+            )
+
+            st.divider()
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("✅ Actualizar Política", type="primary", disabled=not condiciones_validas):
+                    actualizar_politica(
+                        seleccion,
+                        nombre=nuevo_nombre,
+                        descripcion=nueva_desc,
+                        tipo=nuevo_tipo,
+                        condiciones=nuevas_condiciones,
+                        prioridad=nueva_prioridad,
+                        estado=nuevo_estado,
+                        aplicable_a=nuevo_aplicable
+                    )
+                    st.success("✅ Política actualizada correctamente.")
+                    st.rerun()
+
+            with col2:
+                if politica["estado"] == "activa":
+                    if st.button("🔴 Desactivar Política", type="secondary"):
+                        cambiar_estado_politica(seleccion, "inactiva")
+                        st.success("Política desactivada.")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Activar Política", type="secondary"):
+                        cambiar_estado_politica(seleccion, "activa")
+                        st.success("Política activada.")
+                        st.rerun()
