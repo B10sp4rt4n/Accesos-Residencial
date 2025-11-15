@@ -1,34 +1,130 @@
+# modulos/vigilancia.py
 """
-modulos/vigilancia.py
-Interfaz optimizada para vigilantes integrada con AUP-EXO
+VIGILANCIA - Accesos Residencial (AUP-EXO)
+Flujo completo basado en ENTIDAD → ORQUESTADOR → EVENTO
 """
 
+import json
 import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
-import time
-from typing import Dict, Optional
-from core import OrquestadorAccesos, get_db
-from core.contexto import ContextoManager
-from core.utils import validar_placa_mexico
+from datetime import datetime
+from typing import List, Dict, Optional
+
+from core.db import get_db
+from core.orquestador import OrquestadorAccesos
+from modulos.entidades import obtener_entidades, obtener_entidad_por_id
+
+orq = OrquestadorAccesos()
 
 
-def render_vigilancia():
-    """Renderiza interfaz principal de vigilante"""
+# ---------------------------------------------------------------------
+#  BUSCADOR UNIVERSAL DE ENTIDADES
+#  (nombre, placa, QR, folio, teléfono, etc.)
+# ---------------------------------------------------------------------
+def buscar_entidad(query: str) -> List[Dict]:
+    """
+    Busca entidades por cualquier criterio
     
-    # CSS personalizado
+    Args:
+        query: Texto a buscar (nombre, placa, folio, teléfono, etc.)
+    
+    Returns:
+        Lista de entidades encontradas
+    """
+    if not query or len(query) < 2:
+        return []
+
+    query_like = f"%{query}%"
+
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM entidades
+            WHERE estado = 'activo'
+              AND (
+                  entidad_id LIKE ?
+                  OR tipo LIKE ?
+                  OR atributos LIKE ?
+              )
+            ORDER BY fecha_creacion DESC
+            LIMIT 20
+        """, (query_like, query_like, query_like)).fetchall()
+
+    entidades = []
+    for row in rows:
+        entidad = dict(row)
+        # Parsear atributos JSON
+        if entidad.get('atributos'):
+            try:
+                entidad['atributos'] = json.loads(entidad['atributos'])
+            except:
+                entidad['atributos'] = {}
+        entidades.append(entidad)
+    
+    return entidades
+
+
+# ---------------------------------------------------------------------
+#  OBTENER EVENTOS RECIENTES
+# ---------------------------------------------------------------------
+def obtener_eventos_recientes(limite: int = 10) -> List[Dict]:
+    """
+    Obtiene los últimos eventos del sistema
+    
+    Args:
+        limite: Número máximo de eventos a retornar
+    
+    Returns:
+        Lista de eventos recientes
+    """
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT 
+                e.*,
+                ent.tipo as entidad_tipo,
+                ent.atributos as entidad_atributos
+            FROM eventos e
+            LEFT JOIN entidades ent ON e.entidad_id = ent.entidad_id
+            ORDER BY e.timestamp_servidor DESC
+            LIMIT ?
+        """, (limite,)).fetchall()
+    
+    eventos = []
+    for row in rows:
+        evento = dict(row)
+        # Parsear metadata
+        if evento.get('metadata'):
+            try:
+                evento['metadata'] = json.loads(evento['metadata'])
+            except:
+                evento['metadata'] = {}
+        # Parsear atributos de entidad
+        if evento.get('entidad_atributos'):
+            try:
+                evento['entidad_atributos'] = json.loads(evento['entidad_atributos'])
+            except:
+                evento['entidad_atributos'] = {}
+        eventos.append(evento)
+    
+    return eventos
+
+
+# ---------------------------------------------------------------------
+#  UI PRINCIPAL DEL MÓDULO DE VIGILANCIA
+# ---------------------------------------------------------------------
+def ui_vigilancia():
+    """
+    Interfaz principal de vigilancia con flujo AUP-EXO
+    ENTIDAD → ORQUESTADOR → EVENTO
+    """
     st.markdown("""
     <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
         .stButton > button {
-            height: 80px;
-            font-size: 24px;
+            height: 60px;
+            font-size: 18px;
             font-weight: bold;
-            border-radius: 12px;
         }
         .evento-card {
-            padding: 16px;
+            padding: 12px;
             border-radius: 8px;
             margin: 8px 0;
             border-left: 4px solid;
@@ -38,14 +134,28 @@ def render_vigilancia():
             border-left-color: #10b981;
         }
         .evento-salida {
-            background-color: #dbeafe;
-            border-left-color: #3b82f6;
+            background-color: #fee2e2;
+            border-left-color: #ef4444;
         }
     </style>
     """, unsafe_allow_html=True)
     
-    # Header
-    _mostrar_header()
+    st.header("🚧 Control de Accesos - Vigilancia")
+    st.markdown("**Sistema AUP-EXO:** ENTIDAD → ORQUESTADOR → EVENTO")
+    
+    # Información del vigilante
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1:
+        turno = "Matutino" if datetime.now().hour < 14 else "Vespertino"
+        st.metric("Turno", turno)
+    with col_info2:
+        hora_actual = datetime.now().strftime("%H:%M:%S")
+        st.metric("Hora", hora_actual)
+    with col_info3:
+        vigilante = st.session_state.get("usuario_id", "Vigilante 1")
+        st.metric("Operador", vigilante)
+    
+    st.divider()
     
     # Layout principal
     col_principal, col_lateral = st.columns([2, 1])
@@ -55,497 +165,257 @@ def render_vigilancia():
     
     with col_lateral:
         _vista_eventos_recientes()
-    
-    # Footer con acciones rápidas
-    _mostrar_footer()
 
 
-def _mostrar_header():
-    """Header con información del vigilante"""
-    col1, col2, col3 = st.columns([2, 1, 1])
-    
-    with col1:
-        st.markdown("### 🏠 Caseta - Sistema AUP-EXO")
-    
-    with col2:
-        turno = "Matutino" if datetime.now().hour < 14 else "Vespertino"
-        st.markdown(f"**Turno:** {turno}")
-    
-    with col3:
-        usuario = st.session_state.get("usuario_id", "Vigilante")
-        st.markdown(f"**👤 {usuario}**")
-    
-    st.divider()
-
-
+# ---------------------------------------------------------------------
+#  VISTA: REGISTRO DE ACCESO
+# ---------------------------------------------------------------------
 def _vista_registro_acceso():
-    """Vista principal de registro de accesos"""
-    st.markdown("## 📸 Registro de Acceso")
+    """Vista principal para registrar accesos"""
+    st.subheader("🔍 Buscador Universal de Entidades")
     
-    col1, col2 = st.columns([1, 1])
+    # Buscador
+    busqueda = st.text_input(
+        "Buscar por nombre, placa, folio, QR, teléfono...",
+        placeholder="Ejemplo: ABC-1234, Juan Pérez, FOLIO-001",
+        key="busqueda_entidad"
+    )
     
-    with col1:
-        st.markdown("### 📷 Captura de Placa")
+    if busqueda:
+        resultados = buscar_entidad(busqueda)
         
-        # Camera input
-        foto_placa = st.camera_input(
-            "Captura la placa del vehículo",
-            label_visibility="collapsed"
-        )
-        
-        if foto_placa is not None:
-            st.image(foto_placa, caption="Foto capturada", width=200)
+        if resultados:
+            st.success(f"✅ {len(resultados)} entidad(es) encontrada(s)")
             
-            if st.button("🔍 PROCESAR FOTO", use_container_width=True, type="primary"):
-                # TODO: OCR en producción
-                st.session_state.foto_capturada = foto_placa.getvalue()
-                st.info("💡 Ingresa la placa manualmente a la derecha")
-    
-    with col2:
-        st.markdown("### ⌨️ Búsqueda de Placa")
-        
-        placa = st.text_input(
-            "Ingresa placa",
-            placeholder="ABC-1234",
-            max_chars=10,
-            label_visibility="collapsed"
-        ).upper()
-        
-        if st.button("🔍 BUSCAR VEHÍCULO", use_container_width=True):
-            if placa:
-                # Validar formato
-                resultado_validacion = validar_placa_mexico(placa)
+            # Crear opciones para selectbox
+            opciones = {}
+            for r in resultados:
+                attrs = r.get('atributos', {})
+                nombre = attrs.get('nombre', 'Sin nombre')
+                identificador = attrs.get('identificador', 'Sin ID')
+                tipo = r['tipo'].upper()
                 
-                if not resultado_validacion["valida"]:
-                    st.error(f"❌ {resultado_validacion['mensaje']}")
-                    return
-                
-                st.session_state.placa_actual = placa
-                st.rerun()
-    
-    # Si hay placa seleccionada, mostrar verificación
-    if "placa_actual" in st.session_state:
-        st.markdown("---")
-        _vista_verificacion_vehiculo(st.session_state.placa_actual)
-
-
-def _vista_verificacion_vehiculo(placa: str):
-    """Verifica y muestra información del vehículo"""
-    
-    # Buscar vehículo en DB
-    vehiculo = _buscar_vehiculo_por_placa(placa)
-    
-    if not vehiculo:
-        _vista_vehiculo_no_registrado(placa)
-        return
-    
-    # Verificar lista negra
-    if vehiculo.get('lista_negra'):
-        _vista_alerta_lista_negra(vehiculo)
-        return
-    
-    # Vehículo válido
-    _vista_vehiculo_autorizado(vehiculo)
-
-
-def _vista_alerta_lista_negra(vehiculo: Dict):
-    """Alerta de vehículo en lista negra"""
-    st.error("🚨 ALERTA DE SEGURIDAD - VEHÍCULO BLOQUEADO")
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col2:
-        st.markdown(f"### ❌ ACCESO DENEGADO")
-        st.markdown(f"**Placa:** {vehiculo['placa']}")
-        st.markdown(f"**Tipo:** {vehiculo['tipo']}")
-        st.markdown(f"**Motivo:** {vehiculo.get('motivo_lista_negra', 'No especificado')}")
-    
-    st.error("⛔ ACCESO AUTOMÁTICAMENTE DENEGADO")
-    
-    col_btn1, col_btn2 = st.columns(2)
-    
-    with col_btn1:
-        if st.button("🚨 NOTIFICAR SEGURIDAD", use_container_width=True):
-            # Registrar evento de intento de acceso bloqueado
-            orquestador = OrquestadorAccesos()
-            orquestador.registrar_acceso(
-                tipo_evento="intento_acceso_bloqueado",
-                vehiculo_id=vehiculo['id'],
-                resultado="denegado",
-                motivo_denegacion="Vehículo en lista negra",
-                usuario_registro=st.session_state.get("usuario_id")
+                label = f"{tipo} | {nombre} | {identificador}"
+                opciones[label] = r
+            
+            # Selección de entidad
+            seleccion = st.selectbox(
+                "Seleccionar entidad:",
+                list(opciones.keys()),
+                key="select_entidad"
             )
             
-            st.success("✅ Notificación enviada")
-            time.sleep(1)
-            _limpiar_sesion()
-            st.rerun()
-    
-    with col_btn2:
-        if st.button("🔄 NUEVA BÚSQUEDA", use_container_width=True):
-            _limpiar_sesion()
-            st.rerun()
-
-
-def _vista_vehiculo_autorizado(vehiculo: Dict):
-    """Muestra información de vehículo autorizado"""
-    st.success("✅ VEHÍCULO REGISTRADO")
-    
-    # Buscar propietario
-    propietario = _buscar_propietario(vehiculo.get('propietario_id'))
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col2:
-        if propietario:
-            st.markdown(f"### {propietario['nombre_completo']}")
-            st.markdown(f"**Tipo:** {propietario['tipo'].title()}")
-            st.markdown(f"**Dirección:** {propietario.get('direccion', 'N/A')}")
+            if seleccion:
+                entidad = opciones[seleccion]
+                
+                # Mostrar información de la entidad
+                with st.expander("📋 Información de la entidad", expanded=True):
+                    col_ent1, col_ent2 = st.columns(2)
+                    
+                    with col_ent1:
+                        st.write(f"**ID:** `{entidad['entidad_id']}`")
+                        st.write(f"**Tipo:** {entidad['tipo']}")
+                        st.write(f"**Estado:** {entidad['estado']}")
+                    
+                    with col_ent2:
+                        attrs = entidad.get('atributos', {})
+                        st.write(f"**Nombre:** {attrs.get('nombre', 'N/A')}")
+                        st.write(f"**Identificador:** {attrs.get('identificador', 'N/A')}")
+                        st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")
+                    
+                    # Atributos completos
+                    st.json(attrs)
+                
+                st.divider()
+                
+                # Formulario de acceso
+                st.subheader("🚪 Registrar Acceso")
+                
+                col_form1, col_form2 = st.columns(2)
+                
+                with col_form1:
+                    tipo_evento = st.selectbox(
+                        "Tipo de acceso",
+                        ["entrada", "salida"],
+                        key="tipo_evento"
+                    )
+                
+                with col_form2:
+                    actor = st.text_input(
+                        "Vigilante",
+                        value=st.session_state.get("usuario_id", "Vigilante 1"),
+                        key="actor"
+                    )
+                
+                # Notas adicionales
+                notas = st.text_area(
+                    "Notas u observaciones (opcional)",
+                    placeholder="Ej: Visitante autorizado por residente Casa 15",
+                    key="notas_acceso"
+                )
+                
+                # Metadata del acceso
+                metadata = {
+                    "tipo_acceso": tipo_evento,
+                    "hora": datetime.now().strftime("%H:%M:%S"),
+                    "fecha": datetime.now().strftime("%Y-%m-%d"),
+                    "notas": notas,
+                    "contexto": {
+                        "ip": st.session_state.get("ip", "127.0.0.1"),
+                        "terminal": "vigilancia_web",
+                        "modulo": "vigilancia_aup_exo"
+                    }
+                }
+                
+                # Botón de registro
+                col_btn1, col_btn2 = st.columns(2)
+                
+                with col_btn1:
+                    if st.button(
+                        f"✅ Registrar {tipo_evento.upper()}",
+                        type="primary",
+                        use_container_width=True,
+                        key="btn_registrar"
+                    ):
+                        with st.spinner("Procesando acceso..."):
+                            try:
+                                # Procesar acceso vía ORQUESTADOR
+                                if tipo_evento == "entrada":
+                                    # Para entradas: evaluar políticas
+                                    resultado = orq.procesar_acceso(
+                                        entidad_id=entidad["entidad_id"],
+                                        metadata=metadata,
+                                        actor=actor,
+                                        dispositivo="vigilancia_module"
+                                    )
+                                else:
+                                    # Para salidas: registro directo
+                                    resultado = orq.registrar_acceso(
+                                        entidad_id=entidad["entidad_id"],
+                                        tipo_evento="salida",
+                                        metadata=metadata,
+                                        actor=actor,
+                                        dispositivo="vigilancia_module"
+                                    )
+                                
+                                # Verificar resultado
+                                if isinstance(resultado, dict):
+                                    if resultado.get("decision") == "rechazado":
+                                        st.error(f"❌ Acceso RECHAZADO")
+                                        st.warning(f"**Motivo:** {resultado.get('motivo', 'No especificado')}")
+                                        
+                                        # Mostrar políticas violadas
+                                        if resultado.get('politicas_violadas'):
+                                            st.write("**Políticas violadas:**")
+                                            for pol in resultado['politicas_violadas']:
+                                                st.write(f"- {pol}")
+                                    else:
+                                        # Acceso permitido
+                                        st.success("✅ Acceso PERMITIDO y registrado correctamente")
+                                        
+                                        # Información del evento
+                                        st.info(f"**Evento ID:** `{resultado.get('evento_id', 'N/A')}`")
+                                        st.info(f"**Hash:** `{resultado.get('hash', 'N/A')[:20]}...`")
+                                        
+                                        # Recibo Recordia
+                                        if resultado.get('recibo_recordia'):
+                                            st.success(f"📜 **Recibo Recordia:** `{resultado['recibo_recordia']}`")
+                                        
+                                        # Limpiar búsqueda
+                                        if st.button("🔄 Registrar otro acceso"):
+                                            st.rerun()
+                                else:
+                                    # Formato legacy (solo hash)
+                                    st.success("✅ Acceso PERMITIDO y registrado")
+                                    st.info(f"**Hash del evento:** `{str(resultado)[:20]}...`")
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error al procesar acceso: {str(e)}")
+                                st.exception(e)
+                
+                with col_btn2:
+                    if st.button("🔙 Cancelar", use_container_width=True):
+                        st.rerun()
         
-        st.markdown(f"**Vehículo:** {vehiculo['placa']} - {vehiculo['tipo']}")
-        st.markdown(f"**Marca/Modelo:** {vehiculo.get('marca', '')} {vehiculo.get('modelo', '')}")
+        else:
+            st.warning("⚠️ No se encontraron entidades con ese criterio")
+            st.info("💡 Intenta con: nombre, placa, folio, teléfono, etc.")
     
-    # Tipo de acceso
-    st.markdown("---")
-    
-    col_tipo1, col_tipo2 = st.columns(2)
-    
-    with col_tipo1:
-        tipo_acceso = st.radio(
-            "Tipo de movimiento",
-            ["🚗 ENTRADA", "🚙 SALIDA"],
-            horizontal=True
-        )
-    
-    with col_tipo2:
-        notas = st.text_input("📝 Notas (opcional)")
-    
-    # Botones de acción
-    st.markdown("---")
-    
-    col_btn1, col_btn2 = st.columns(2)
-    
-    with col_btn1:
-        if st.button("✅ PERMITIR ACCESO", use_container_width=True, type="primary"):
-            _registrar_acceso_vehiculo(
-                vehiculo,
-                "entrada" if "ENTRADA" in tipo_acceso else "salida",
-                propietario,
-                notas
-            )
-    
-    with col_btn2:
-        if st.button("❌ DENEGAR ACCESO", use_container_width=True):
-            motivo = st.text_input("Motivo de denegación:")
-            if motivo:
-                _registrar_denegacion(vehiculo, motivo)
+    else:
+        st.info("👆 Ingresa un criterio de búsqueda para comenzar")
 
 
-def _vista_vehiculo_no_registrado(placa: str):
-    """Formulario para vehículo no registrado"""
-    st.warning("⚠️ VEHÍCULO NO REGISTRADO")
-    st.markdown(f"### Placa: {placa}")
+# ---------------------------------------------------------------------
+#  VISTA: EVENTOS RECIENTES
+# ---------------------------------------------------------------------
+def _vista_eventos_recientes():
+    """Vista lateral con eventos recientes"""
+    st.subheader("📊 Eventos Recientes")
     
-    with st.form("registro_visitante"):
-        st.markdown("#### Registrar Nuevo Acceso")
-        
+    # Selector de cantidad
+    limite = st.selectbox("Mostrar últimos", [5, 10, 20, 50], index=1, key="limite_eventos")
+    
+    # Obtener eventos
+    eventos = obtener_eventos_recientes(limite=limite)
+    
+    if eventos:
+        for evento in eventos:
+            tipo_evento = evento.get('tipo_evento', 'N/A')
+            timestamp = evento.get('timestamp_servidor', '')
+            
+            # Extraer nombre de entidad
+            attrs_ent = evento.get('entidad_atributos', {})
+            nombre_entidad = attrs_ent.get('nombre', 'Sin nombre')
+            id_entidad = attrs_ent.get('identificador', 'Sin ID')
+            tipo_entidad = evento.get('entidad_tipo', 'N/A')
+            
+            # Estilo según tipo de evento
+            clase_css = "evento-entrada" if tipo_evento == "entrada" else "evento-salida"
+            icono = "🟢" if tipo_evento == "entrada" else "🔴"
+            
+            # Card del evento
+            st.markdown(f"""
+            <div class="evento-card {clase_css}">
+                <strong>{icono} {tipo_evento.upper()}</strong><br>
+                <small>{tipo_entidad.upper()}: {nombre_entidad}</small><br>
+                <small>ID: {id_entidad}</small><br>
+                <small>⏰ {timestamp}</small>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("📭 No hay eventos registrados")
+    
+    # Botón para refrescar
+    if st.button("🔄 Actualizar", use_container_width=True):
+        st.rerun()
+
+
+# ---------------------------------------------------------------------
+# PANTALLA RESUMIDA PARA INDEX
+# ---------------------------------------------------------------------
+def ui_resumen_vigilancia():
+    """Resumen de vigilancia para página principal"""
+    st.write("### 🚧 Vigilancia (Accesos)")
+    st.write("Registra accesos mediante el buscador universal de entidades.")
+    
+    # Estadísticas rápidas
+    eventos = obtener_eventos_recientes(limite=100)
+    
+    if eventos:
         col1, col2 = st.columns(2)
         
         with col1:
-            tipo_persona = st.selectbox(
-                "Tipo de persona",
-                ["visitante", "residente", "empleado", "proveedor"]
-            )
-            nombre = st.text_input("Nombre completo *")
-            telefono = st.text_input("Teléfono")
+            entradas = sum(1 for e in eventos if e.get('tipo_evento') == 'entrada')
+            st.metric("Entradas hoy", entradas)
         
         with col2:
-            tipo_vehiculo = st.selectbox(
-                "Tipo de vehículo",
-                ["auto", "moto", "camioneta", "pickup", "camion"]
-            )
-            casa_destino = st.text_input("Casa/Depto destino *")
-            
-        notas = st.text_area("Observaciones")
-        
-        col_submit1, col_submit2 = st.columns(2)
-        
-        with col_submit1:
-            submitted = st.form_submit_button(
-                "✅ REGISTRAR Y PERMITIR",
-                use_container_width=True,
-                type="primary"
-            )
-        
-        with col_submit2:
-            denegado = st.form_submit_button(
-                "❌ DENEGAR",
-                use_container_width=True
-            )
-        
-        if submitted:
-            if not nombre or not casa_destino:
-                st.error("Nombre y casa destino son obligatorios")
-                return
-            
-            _registrar_nuevo_acceso(
-                placa,
-                nombre,
-                tipo_persona,
-                tipo_vehiculo,
-                casa_destino,
-                telefono,
-                notas
-            )
-        
-        if denegado:
-            st.warning("⛔ Acceso denegado")
-            time.sleep(1)
-            _limpiar_sesion()
-            st.rerun()
+            salidas = sum(1 for e in eventos if e.get('tipo_evento') == 'salida')
+            st.metric("Salidas hoy", salidas)
 
 
-def _vista_eventos_recientes():
-    """Muestra eventos recientes del día"""
-    st.markdown("### 📋 Accesos Recientes")
-    
-    eventos = _obtener_eventos_hoy()
-    
-    # Métricas
-    total_hoy = len(eventos)
-    entradas = len([e for e in eventos if e['tipo_evento'] == 'entrada'])
-    salidas = len([e for e in eventos if e['tipo_evento'] == 'salida'])
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total", total_hoy)
-    col2.metric("Entradas", entradas)
-    col3.metric("Salidas", salidas)
-    
-    st.markdown("---")
-    
-    # Lista de eventos
-    for evento in eventos[:10]:
-        hora = pd.to_datetime(evento['timestamp']).strftime("%H:%M")
-        tipo_icon = "🚗" if evento['tipo_evento'] == 'entrada' else "🚙"
-        resultado_icon = "✅" if evento['resultado'] == 'autorizado' else "❌"
-        
-        tipo_class = f"evento-{evento['tipo_evento']}"
-        
-        st.markdown(f"""
-        <div class="evento-card {tipo_class}">
-            <strong>{hora}</strong> • {tipo_icon} {evento['tipo_evento'].upper()} {resultado_icon}<br>
-            ID: {evento.get('vehiculo_id', 'N/A')}
-        </div>
-        """, unsafe_allow_html=True)
-
-
-def _mostrar_footer():
-    """Footer con acciones rápidas"""
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🚨 EMERGENCIA", use_container_width=True):
-            st.error("🚨 Protocolo de emergencia activado")
-    
-    with col2:
-        if st.button("📊 REPORTE TURNO", use_container_width=True):
-            _generar_reporte_turno()
-    
-    with col3:
-        if st.button("🔄 LIMPIAR", use_container_width=True):
-            _limpiar_sesion()
-            st.rerun()
-
-
-# Funciones auxiliares
-
-def _buscar_vehiculo_por_placa(placa: str) -> Optional[Dict]:
-    """Busca vehículo por placa"""
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM entidades WHERE tipo_entidad = 'vehiculo' AND placa = ?",
-            (placa,)
-        )
-        row = cursor.fetchone()
-        
-        if row:
-            columns = [desc[0] for desc in cursor.description]
-            return dict(zip(columns, row))
-        
-        return None
-
-
-def _buscar_propietario(propietario_id: Optional[int]) -> Optional[Dict]:
-    """Busca información del propietario"""
-    if not propietario_id:
-        return None
-    
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM entidades WHERE id = ?",
-            (propietario_id,)
-        )
-        row = cursor.fetchone()
-        
-        if row:
-            columns = [desc[0] for desc in cursor.description]
-            return dict(zip(columns, row))
-        
-        return None
-
-
-def _registrar_acceso_vehiculo(
-    vehiculo: Dict,
-    tipo: str,
-    propietario: Optional[Dict],
-    notas: str
-):
-    """Registra acceso de vehículo autorizado"""
-    orquestador = OrquestadorAccesos()
-    
-    # Capturar contexto del dispositivo
-    cm = ContextoManager()
-    contexto = cm.capturar_contexto_completo()
-    
-    # Procesar acceso
-    resultado = orquestador.procesar_acceso(
-        tipo_acceso=tipo,
-        vehiculo_id=vehiculo['id'],
-        entidad_id=propietario['id'] if propietario else None,
-        evidencia_foto=st.session_state.get('foto_capturada'),
-        contexto_dispositivo=contexto,
-        usuario_registro=st.session_state.get('usuario_id', 'vigilante'),
-        notas=notas
-    )
-    
-    if resultado['autorizado']:
-        st.success(f"✅ Acceso {tipo} registrado correctamente")
-        st.balloons()
-    else:
-        st.error(f"❌ Acceso denegado: {resultado.get('motivo')}")
-    
-    time.sleep(2)
-    _limpiar_sesion()
-    st.rerun()
-
-
-def _registrar_nuevo_acceso(
-    placa: str,
-    nombre: str,
-    tipo_persona: str,
-    tipo_vehiculo: str,
-    casa_destino: str,
-    telefono: str,
-    notas: str
-):
-    """Registra nuevo acceso (persona y vehículo no registrados)"""
-    orquestador = OrquestadorAccesos()
-    
-    # Crear persona
-    persona_id = orquestador.crear_entidad(
-        tipo=tipo_persona,
-        nombre=nombre,
-        telefono=telefono,
-        datos_adicionales={"casa_destino": casa_destino}
-    )
-    
-    # Crear vehículo
-    vehiculo_id = orquestador.crear_entidad(
-        tipo="vehiculo",
-        identificador=placa,
-        propietario_id=persona_id,
-        datos_adicionales={
-            "tipo": tipo_vehiculo,
-            "registro_temporal": True
-        }
-    )
-    
-    # Registrar acceso
-    cm = ContextoManager()
-    contexto = cm.capturar_contexto_completo()
-    
-    resultado = orquestador.procesar_acceso(
-        tipo_acceso="entrada",
-        vehiculo_id=vehiculo_id,
-        entidad_id=persona_id,
-        evidencia_foto=st.session_state.get('foto_capturada'),
-        contexto_dispositivo=contexto,
-        usuario_registro=st.session_state.get('usuario_id', 'vigilante'),
-        notas=f"Nuevo registro. {notas}"
-    )
-    
-    if resultado['autorizado']:
-        st.success(f"✅ Nuevo {tipo_persona} registrado - Acceso permitido")
-        st.balloons()
-    else:
-        st.error(f"❌ Error al registrar: {resultado.get('motivo')}")
-    
-    time.sleep(2)
-    _limpiar_sesion()
-    st.rerun()
-
-
-def _registrar_denegacion(vehiculo: Dict, motivo: str):
-    """Registra denegación de acceso"""
-    orquestador = OrquestadorAccesos()
-    
-    orquestador.registrar_acceso(
-        tipo_evento="acceso_denegado",
-        vehiculo_id=vehiculo['id'],
-        resultado="denegado",
-        motivo_denegacion=motivo,
-        usuario_registro=st.session_state.get('usuario_id')
-    )
-    
-    st.warning(f"⛔ Acceso denegado: {motivo}")
-    time.sleep(2)
-    _limpiar_sesion()
-    st.rerun()
-
-
-def _obtener_eventos_hoy() -> list:
-    """Obtiene eventos de hoy"""
-    hoy = datetime.now().date().isoformat()
-    
-    with get_db() as conn:
-        cursor = conn.execute("""
-            SELECT * FROM eventos 
-            WHERE DATE(timestamp) = ? 
-            ORDER BY timestamp DESC 
-            LIMIT 20
-        """, (hoy,))
-        
-        columns = [desc[0] for desc in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-def _generar_reporte_turno():
-    """Genera reporte del turno actual"""
-    st.info("Generando reporte de turno...")
-    
-    eventos_hoy = _obtener_eventos_hoy()
-    
-    st.write(f"**Total eventos:** {len(eventos_hoy)}")
-    st.write(f"**Entradas:** {len([e for e in eventos_hoy if e['tipo_evento'] == 'entrada'])}")
-    st.write(f"**Salidas:** {len([e for e in eventos_hoy if e['tipo_evento'] == 'salida'])}")
-    st.write(f"**Autorizados:** {len([e for e in eventos_hoy if e['resultado'] == 'autorizado'])}")
-    st.write(f"**Denegados:** {len([e for e in eventos_hoy if e['resultado'] == 'denegado'])}")
-
-
-def _limpiar_sesion():
-    """Limpia variables de sesión"""
-    keys_to_remove = ['placa_actual', 'foto_capturada']
-    for key in keys_to_remove:
-        if key in st.session_state:
-            del st.session_state[key]
-
-
-if __name__ == "__main__":
-    st.set_page_config(
-        page_title="Vigilancia",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
-    render_vigilancia()
+# ---------------------------------------------------------------------
+# ALIAS DE COMPATIBILIDAD
+# ---------------------------------------------------------------------
+def render_vigilancia():
+    """Alias de compatibilidad con código anterior"""
+    ui_vigilancia()
