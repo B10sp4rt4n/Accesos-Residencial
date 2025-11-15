@@ -9,6 +9,7 @@ from .motor_reglas import evaluar_reglas
 from .hashing import hash_evento, hash_entidad, verificar_cadena_integridad
 from .roles import RoleManager, Permisos
 from .contexto import ContextoManager
+from .evidencia import enviar_a_recordia
 
 __all__ = [
     "get_db",
@@ -20,7 +21,8 @@ __all__ = [
     "verificar_cadena_integridad",
     "RoleManager",
     "Permisos",
-    "ContextoManager"
+    "ContextoManager",
+    "enviar_a_recordia"
 ]
 
 __version__ = "2.0.0-aup-exo"

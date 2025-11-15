@@ -1,16 +1,52 @@
 """
 core/evidencia.py
-Gestión de evidencias (fotos, documentos)
-Puente EXO para HotVault futuro
+Gestión de evidencias con integridad y puente a Recordia (AUP-EXO)
 """
 
-import os
+from pathlib import Path
+from datetime import datetime
 import hashlib
 import json
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any, Optional
 from core.hashing import hash_evidencia
+
+
+# Directorio de almacenamiento de evidencias
+EVIDENCIAS_PATH = Path("data/evidencia")
+
+
+def enviar_a_recordia(evento_hash: str, metadata: dict) -> str:
+    """
+    Envía evento a Recordia para trazabilidad jurídica externa
+    
+    FASE 3 - Integración EXO-Recordia (preliminar)
+    
+    Args:
+        evento_hash: Hash del evento para enlazar
+        metadata: Metadatos del evento
+    
+    Returns:
+        Recibo de Recordia (formato: REC-{hash_prefix})
+    
+    DISEÑO AUP-EXO:
+    - Trazabilidad externa con valor jurídico
+    - Diferencial de mercado: auditoría certificada
+    - Futuro: envío real a Recordia-Bridge
+    - Ahora: simulación con recibo local
+    """
+    # TODO: En producción, enviar a Recordia-Bridge
+    # import requests
+    # response = requests.post(RECORDIA_ENDPOINT, json={
+    #     "evento_hash": evento_hash,
+    #     "metadata": metadata,
+    #     "timestamp": datetime.now().isoformat()
+    # })
+    # return response.json()["recibo"]
+    
+    # Por ahora: simulación local
+    recibo = f"REC-{evento_hash[:10]}"
+    
+    return recibo
 
 
 class GestorEvidencias:

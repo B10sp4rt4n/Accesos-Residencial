@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 from core.db import get_db
 from core.hashing import hash_evento, hash_entidad, generar_hash_cadena
 from core.motor_reglas import evaluar_reglas
+from core.evidencia import enviar_a_recordia
 
 
 class OrquestadorAccesos:
@@ -71,14 +72,18 @@ class OrquestadorAccesos:
             timestamp_servidor
         )
         
+        # FASE 3 - Integración EXO-Recordia
+        # Enviar a Recordia para trazabilidad jurídica externa
+        recibo_recordia = enviar_a_recordia(evento_hash, metadata)
+        
         # Insertar en base de datos
         with get_db() as db:
             cursor = db.execute("""
                 INSERT INTO eventos (
                     entidad_id, tipo_evento, metadata, evidencia_id,
                     hash_actual, timestamp_servidor, timestamp_cliente,
-                    actor, dispositivo, origen, contexto
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    actor, dispositivo, origen, contexto, recibo_recordia
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 entidad_id,
                 tipo_evento,
@@ -90,7 +95,8 @@ class OrquestadorAccesos:
                 actor,
                 dispositivo,
                 metadata.get('origen', 'local'),
-                json.dumps(metadata.get('contexto', {}))
+                json.dumps(metadata.get('contexto', {})),
+                recibo_recordia
             ))
             
             evento_id = cursor.lastrowid
@@ -109,6 +115,7 @@ class OrquestadorAccesos:
             "success": True,
             "evento_id": evento_id,
             "hash": evento_hash,
+            "recibo_recordia": recibo_recordia,
             "timestamp": timestamp_servidor
         }
     
