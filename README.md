@@ -1,15 +1,48 @@
-# Accesos-Residencial 🏠
+# AX-S - Sistema de Control de Accesos Residencial 🏠
+## Arquitectura AUP-EXO | Versión SaaS
 
-Sistema de control de accesos para residenciales con interfaz web optimizada para tablets.
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Python](https://img.shields.io/badge/python-3.12+-green)
+![License](https://img.shields.io/badge/license-Proprietary-red)
 
-## 🎯 ¿Qué es este proyecto?
+## 🎯 ¿Qué es AX-S?
 
-Sistema completo de gestión de accesos vehiculares para residenciales, diseñado para:
-- ✅ **Bajo costo**: Solo necesitas una tablet ($240)
-- ✅ **Fácil de usar**: Interfaz touch-friendly para vigilantes
-- ✅ **Sin mensualidades**: Hosting y base de datos gratuitos
-- ✅ **Escalable**: De 1 a N casetas sin cambios
-- ✅ **Completo**: Desde registro hasta reportes
+**AX-S** (Access Control System) es un sistema de control de accesos residencial de nivel empresarial, construido sobre la **arquitectura AUP-EXO** (Arquitectura Universal Plataforma - Experiencia Optimizada).
+
+Sistema completo pensado como **producto SaaS**, diseñado para:
+- ✅ **Escalabilidad sin refactoring** - Agregar nuevos tipos de entidades sin cambiar schema
+- ✅ **Trazabilidad blockchain-style** - Hash SHA-256 encadenado en cada evento
+- ✅ **Motor de políticas parametrizadas** - Configuración en tiempo real sin deployment
+- ✅ **Analítica estructural** - Comparación T-1 vs T0 y detección de anomalías
+- ✅ **Integración con ecosistema AUP-EXO** - Recordia, HotVault, CRM-EXO, Oyente
+
+
+## 🏗️ Arquitectura AX-S (SaaS Ready)
+
+```
+AX-S/
+├── app/                    # Núcleo de la aplicación
+│   ├── core/              # Motores AUP-EXO (orchestrator, policies, analytics)
+│   ├── models/            # Modelos de datos
+│   ├── database/          # Capa de datos (SQLite/PostgreSQL)
+│   ├── security/          # Autenticación y permisos
+│   ├── utils/             # Utilidades
+│   ├── services/          # Servicios externos (notifications, Recordia)
+│   └── views/             # Interfaces UI (Streamlit)
+├── assets/                # Recursos estáticos
+├── docs/                  # Documentación
+├── tests/                 # Suite de pruebas
+└── deployment/            # Docker, nginx, AWS
+```
+
+### Principios de Diseño AUP-EXO
+
+1. **Modelo Universal de Entidades** - Personas, vehículos, visitantes, proveedores en una sola tabla
+2. **Trazabilidad inmutable** - Cadena de hash imposible de alterar
+3. **Políticas parametrizadas** - Configuración en tiempo real sin código
+4. **Modelo mental simple** - Todo es ENTIDAD → EVENTO → ORQUESTADOR
+
+---
 
 ## 🚀 Inicio Rápido
 
