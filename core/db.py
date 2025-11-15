@@ -33,26 +33,34 @@ def init_db():
     Path("data").mkdir(exist_ok=True)
     
     with get_db() as db:
-        # Tabla de entidades (universal)
+        # Tabla de entidades (universal: personas, vehículos, etc.)
+        # DISEÑO AUP-EXO: Nodo universal parametrizable
+        # - No usamos tablas separadas con estructura distinta
+        # - Todo es "una entidad parametrizable" con atributos JSON
+        # - hash_actual y evolución permiten reconstruir historial completo
+        # - Permite agregar nuevos tipos sin cambiar schema
         db.execute("""
             CREATE TABLE IF NOT EXISTS entidades (
                 entidad_id TEXT PRIMARY KEY,
                 tipo TEXT NOT NULL,
-                atributos TEXT NOT NULL,
-                hash_prev TEXT,
+                atributos JSON NOT NULL,
                 hash_actual TEXT NOT NULL,
+                hash_previo TEXT,
                 estado TEXT DEFAULT 'activo',
                 fecha_creacion TEXT NOT NULL,
                 fecha_actualizacion TEXT NOT NULL,
-                created_by TEXT,
-                updated_by TEXT
+                created_by TEXT
             )
         """)
         
-        # Tabla de eventos (trazabilidad completa)
+        # Tabla de eventos (con encadenamiento hash)
+        # DISEÑO AUP-EXO: Bitácora reconstruible con hash encadenado
+        # - Permite recuperar cada acceso incluso si la base se corrompe
+        # - hash_actual enlaza con hash_previo del siguiente evento (blockchain-style)
+        # - recibo_recordia: enlace a sistema externo de trazabilidad jurídica
         db.execute("""
             CREATE TABLE IF NOT EXISTS eventos (
-                evento_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                evento_id TEXT PRIMARY KEY,
                 entidad_id TEXT,
                 tipo_evento TEXT NOT NULL,
                 metadata TEXT,
@@ -60,16 +68,20 @@ def init_db():
                 hash_actual TEXT NOT NULL,
                 timestamp_servidor TEXT NOT NULL,
                 timestamp_cliente TEXT,
-                actor TEXT NOT NULL,
+                actor TEXT,
                 dispositivo TEXT,
                 origen TEXT,
                 contexto TEXT,
                 recibo_recordia TEXT,
-                FOREIGN KEY (entidad_id) REFERENCES entidades(entidad_id)
+                FOREIGN KEY(entidad_id) REFERENCES entidades(entidad_id)
             )
         """)
         
         # Tabla de políticas (motor de reglas)
+        # DISEÑO AUP-EXO: Políticas parametrizadas
+        # - Pueden crecer sin cambiar código
+        # - Condiciones en JSON permiten infinitas combinaciones
+        # - Evaluación dinámica sin recompilación
         db.execute("""
             CREATE TABLE IF NOT EXISTS politicas (
                 politica_id TEXT PRIMARY KEY,
