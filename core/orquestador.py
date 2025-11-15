@@ -130,40 +130,25 @@ class OrquestadorAccesos:
         """
         Procesa un intento de acceso (evalúa reglas + registra)
         
-        Este es el método principal que debe llamarse desde la interfaz
+        Este es el método principal que debe llamarse desde la interfaz.
+        
+        Returns:
+            Si permitido: evento_hash (str)
+            Si rechazado: {"status": "rechazado", "motivo": str, "politica": str}
         """
         # Evaluar reglas de negocio
         evaluacion = evaluar_reglas(entidad_id, metadata)
         
-        if evaluacion['permitido']:
-            # Acceso permitido - registrar entrada
-            resultado_registro = self.registrar_acceso(
-                entidad_id=entidad_id,
-                tipo_evento="entrada",
-                metadata={
-                    **metadata,
-                    "evaluacion": evaluacion
-                },
-                actor=actor,
-                dispositivo=dispositivo,
-                evidencia_id=evidencia_id
-            )
-            
-            return {
-                "status": "permitido",
-                "mensaje": "Acceso autorizado",
-                "evaluacion": evaluacion,
-                "evento": resultado_registro
-            }
-        else:
+        if not evaluacion['permitido']:
             # Acceso denegado - registrar rechazo
-            resultado_registro = self.registrar_acceso(
+            metadata_rechazo = dict(metadata)
+            metadata_rechazo["motivo_rechazo"] = evaluacion["motivo"]
+            metadata_rechazo["evaluacion"] = evaluacion
+            
+            self.registrar_acceso(
                 entidad_id=entidad_id,
                 tipo_evento="rechazo",
-                metadata={
-                    **metadata,
-                    "evaluacion": evaluacion
-                },
+                metadata=metadata_rechazo,
                 actor=actor,
                 dispositivo=dispositivo,
                 evidencia_id=evidencia_id
@@ -171,10 +156,25 @@ class OrquestadorAccesos:
             
             return {
                 "status": "rechazado",
-                "mensaje": evaluacion['motivo'],
-                "evaluacion": evaluacion,
-                "evento": resultado_registro
+                "motivo": evaluacion["motivo"],
+                "politica": evaluacion["politica_aplicada"]
             }
+        
+        # Acceso permitido - registrar entrada
+        metadata_entrada = dict(metadata)
+        metadata_entrada["evaluacion"] = evaluacion
+        
+        resultado_registro = self.registrar_acceso(
+            entidad_id=entidad_id,
+            tipo_evento="entrada",
+            metadata=metadata_entrada,
+            actor=actor,
+            dispositivo=dispositivo,
+            evidencia_id=evidencia_id
+        )
+        
+        # Retornar solo el hash del evento (para compatibilidad con vigilancia)
+        return resultado_registro["hash"]
     
     def registrar_salida(
         self,
