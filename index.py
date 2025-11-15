@@ -8,6 +8,7 @@ import streamlit as st
 from modulos.vigilancia import ui_vigilancia
 from modulos.entidades_ui import ui_entidades
 from modulos.eventos import ui_eventos
+from modulos.politicas import ui_politicas
 
 # Configuración de página
 st.set_page_config(
@@ -39,7 +40,7 @@ st.sidebar.divider()
 with st.sidebar.expander("📌 Información"):
     st.caption("**Versión:** 2.0.0-aup-exo")
     st.caption("**Arquitectura:** AUP-EXO")
-    st.caption("**Fases completadas:** A, A.1, A.2, A.3, A.4")
+    st.caption("**Fases completadas:** A, A.1, A.2, A.3, A.4, A.5")
 
 # Renderizado según selección
 if opcion == "🚧 Control de Accesos":
@@ -52,16 +53,7 @@ elif opcion == "📊 Historial de Eventos":
     ui_eventos()
 
 elif opcion == "📋 Políticas y Reglas":
-    st.header("📋 Políticas y Reglas")
-    st.info("**Módulo en desarrollo (FASE B)**")
-    st.markdown("""
-    Este módulo permitirá:
-    - Crear políticas de acceso
-    - Definir horarios y restricciones
-    - Establecer prioridades
-    - Aplicar reglas por tipo de entidad
-    - Gestión de políticas parametrizadas
-    """)
+    ui_politicas()
 
 elif opcion == "ℹ️ Acerca del Sistema":
     st.header("ℹ️ Acerca del Sistema")
@@ -100,7 +92,7 @@ elif opcion == "ℹ️ Acerca del Sistema":
     | **Entidades** | ✅ Completado | Registro universal de entidades |
     | **Vigilancia** | ✅ Completado | Control de accesos con orquestador |
     | **Eventos** | ✅ Completado | Historial y auditoría |
-    | **Políticas** | 🟡 En desarrollo | Gestión de reglas |
+    | **Políticas** | ✅ Completado | Gestión de reglas parametrizadas |
     
     ### 🚀 Ventajas del Diseño AUP-EXO
     
@@ -128,6 +120,7 @@ elif opcion == "ℹ️ Acerca del Sistema":
     - ✅ FASE A.2: UI Universal de Entidades
     - ✅ FASE A.3: Migración y Limpieza
     - ✅ FASE A.4: Historial de Eventos
+    - ✅ FASE A.5: Políticas Parametrizadas
     
     **Próximas Fases:**
     - ⏳ FASE B: Módulos complementarios
