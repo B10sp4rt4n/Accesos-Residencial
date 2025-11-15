@@ -7,6 +7,7 @@ Arquitectura AUP-EXO
 import streamlit as st
 from modulos.vigilancia import ui_vigilancia
 from modulos.entidades_ui import ui_entidades
+from modulos.eventos import ui_eventos
 
 # Configuración de página
 st.set_page_config(
@@ -38,7 +39,7 @@ st.sidebar.divider()
 with st.sidebar.expander("📌 Información"):
     st.caption("**Versión:** 2.0.0-aup-exo")
     st.caption("**Arquitectura:** AUP-EXO")
-    st.caption("**Fases completadas:** A, A.1, A.2, A.3")
+    st.caption("**Fases completadas:** A, A.1, A.2, A.3, A.4")
 
 # Renderizado según selección
 if opcion == "🚧 Control de Accesos":
@@ -48,16 +49,7 @@ elif opcion == "🏢 Registro de Entidades":
     ui_entidades()
 
 elif opcion == "📊 Historial de Eventos":
-    st.header("📊 Historial de Eventos")
-    st.info("**Módulo en desarrollo (FASE B)**")
-    st.markdown("""
-    Este módulo permitirá:
-    - Consultar eventos históricos
-    - Filtrar por tipo, entidad, fecha
-    - Exportar reportes
-    - Visualizar cadena de hash
-    - Verificar integridad con Recordia
-    """)
+    ui_eventos()
 
 elif opcion == "📋 Políticas y Reglas":
     st.header("📋 Políticas y Reglas")
@@ -107,7 +99,7 @@ elif opcion == "ℹ️ Acerca del Sistema":
     |--------|--------|-------------|
     | **Entidades** | ✅ Completado | Registro universal de entidades |
     | **Vigilancia** | ✅ Completado | Control de accesos con orquestador |
-    | **Eventos** | 🟡 En desarrollo | Historial y auditoría |
+    | **Eventos** | ✅ Completado | Historial y auditoría |
     | **Políticas** | 🟡 En desarrollo | Gestión de reglas |
     
     ### 🚀 Ventajas del Diseño AUP-EXO
@@ -135,6 +127,7 @@ elif opcion == "ℹ️ Acerca del Sistema":
     - ✅ FASE A.1: Vigilancia AUP-EXO
     - ✅ FASE A.2: UI Universal de Entidades
     - ✅ FASE A.3: Migración y Limpieza
+    - ✅ FASE A.4: Historial de Eventos
     
     **Próximas Fases:**
     - ⏳ FASE B: Módulos complementarios
