@@ -89,11 +89,22 @@ def get_db():
                     conn = psycopg2.connect(st.secrets['DATABASE_URL'])
                     use_postgres = True
                     print("✅ Conectado a PostgreSQL via DATABASE_URL")
+                except Exception as pg_error:
+                    print(f"❌ ERROR conectando PostgreSQL: {pg_error}")
+                    import traceback
+                    traceback.print_exc()
+                    raise  # Re-lanzar para evitar fallback a SQLite
                 finally:
                     socket.getaddrinfo = original_getaddrinfo
         except Exception as e:
             print(f"⚠️  Error en Opción 2: {e}")
-            pass
+            # Re-lanzar si estamos en Streamlit Cloud para evitar fallback
+            try:
+                import streamlit as st
+                if hasattr(st, 'secrets') and 'DATABASE_URL' in st.secrets:
+                    raise
+            except:
+                pass
     
     # Opción 3: Variable de entorno DB_MODE (desarrollo local)
     if not conn and DB_MODE == 'postgres':
@@ -106,8 +117,20 @@ def get_db():
             print(f"⚠️  Error conectando PostgreSQL: {e}")
             print("📌 Fallback a SQLite...")
     
-    # Opción 4: Fallback a SQLite (desarrollo)
+    # Opción 4: Fallback a SQLite (solo en desarrollo local, NO en Streamlit Cloud)
     if not conn:
+        # Verificar si estamos en Streamlit Cloud
+        in_streamlit_cloud = False
+        try:
+            import streamlit as st
+            if hasattr(st, 'secrets') and ('DATABASE_URL' in st.secrets or 'PG_HOST' in st.secrets):
+                in_streamlit_cloud = True
+        except:
+            pass
+        
+        if in_streamlit_cloud:
+            raise Exception("❌ No se pudo conectar a PostgreSQL y no hay fallback SQLite en Streamlit Cloud")
+        
         conn = sqlite3.connect(DB_PATH if Path(DB_PATH).exists() else "axs_v2.db")
         conn.row_factory = sqlite3.Row
         print("📌 Usando SQLite (desarrollo local)")
