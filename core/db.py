@@ -115,36 +115,63 @@ def get_db():
     try:
         # Wrapper para compatibilidad de queries
         if use_postgres:
-            # Crear cursor con dict factory
             from psycopg2.extras import RealDictCursor
             
-            # Wrapper del método cursor() para que siempre use RealDictCursor
-            original_cursor_method = conn.cursor
-            def cursor_with_dict():
-                cur = original_cursor_method(cursor_factory=RealDictCursor)
-                # Agregar wrapper al execute del cursor para convertir ? a %s
-                original_cur_execute = cur.execute
-                def execute_compat(query, params=None):
-                    query = query.replace('?', '%s')
-                    if params:
-                        return original_cur_execute(query, params)
-                    return original_cur_execute(query)
-                cur.execute = execute_compat
-                return cur
-            
-            conn.cursor = cursor_with_dict
-            
-            # IMPORTANTE: Agregar método execute() a la conexión (para compatibilidad con SQLite)
-            def connection_execute(query, params=None):
-                cur = conn.cursor()
-                query = query.replace('?', '%s')
-                if params:
+            # Crear un wrapper de conexión que emule SQLite
+            class PostgresWrapper:
+                def __init__(self, pg_conn):
+                    self._conn = pg_conn
+                
+                def cursor(self):
+                    cur = self._conn.cursor(cursor_factory=RealDictCursor)
+                    # Wrapper para execute que convierte ? a %s
+                    original_execute = cur.execute
+                    original_fetchone = cur.fetchone
+                    original_fetchall = cur.fetchall
+                    
+                    def execute_compat(query, params=None):
+                        query = query.replace('?', '%s')
+                        if params:
+                            return original_execute(query, params)
+                        return original_execute(query)
+                    
+                    def fetchone_compat():
+                        """Devuelve tupla con valores (compatible con SQLite)"""
+                        row = original_fetchone()
+                        if row:
+                            # Para SELECT COUNT(*) devolver (count,)
+                            if len(row) == 1 and 'count' in row:
+                                return (row['count'],)
+                            # Para otros casos devolver valores como tupla
+                            return tuple(row.values())
+                        return None
+                    
+                    def fetchall_compat():
+                        """Devuelve lista de tuplas"""
+                        rows = original_fetchall()
+                        return [tuple(r.values()) if isinstance(r, dict) else r for r in rows]
+                    
+                    cur.execute = execute_compat
+                    cur.fetchone = fetchone_compat
+                    cur.fetchall = fetchall_compat
+                    return cur
+                
+                def execute(self, query, params=None):
+                    """Ejecuta query directamente (como SQLite)"""
+                    cur = self.cursor()
                     cur.execute(query, params)
-                else:
-                    cur.execute(query)
-                return cur
+                    return cur
+                
+                def commit(self):
+                    self._conn.commit()
+                
+                def rollback(self):
+                    self._conn.rollback()
+                
+                def close(self):
+                    self._conn.close()
             
-            conn.execute = connection_execute
+            conn = PostgresWrapper(conn)
         
         yield conn
         
