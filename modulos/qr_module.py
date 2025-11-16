@@ -71,8 +71,8 @@ def _render_generar_qr_visitante():
         # Usar buscar_entidad de vigilancia
         resultados = buscar_entidad(criterio_busqueda)
         
-        # Filtrar solo visitantes
-        visitantes = [r for r in resultados if r.get('tipo', '').upper() in ['VISITANTE', 'VISITA']]
+        # Filtrar visitantes: puede ser tipo VISITA, VISITANTE o PERSONA
+        visitantes = [r for r in resultados if r.get('tipo', '').upper() in ['VISITANTE', 'VISITA', 'PERSONA']]
         
         if visitantes:
             st.write(f"**{len(visitantes)} visitante(s) encontrado(s):**")
