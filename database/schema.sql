@@ -5,20 +5,25 @@
 
 -- Tabla: eventos (bitácora universal)
 CREATE TABLE IF NOT EXISTS eventos (
-    id SERIAL PRIMARY KEY,
-    tipo VARCHAR(50) NOT NULL,
-    rol VARCHAR(50),
-    detalle TEXT,
-    timestamp TIMESTAMPTZ DEFAULT NOW(),
-    entidad_id INTEGER,
-    score INTEGER DEFAULT 0,
-    metadata JSONB
+    evento_id VARCHAR(100) PRIMARY KEY,
+    entidad_id VARCHAR(100),
+    tipo_evento VARCHAR(50) NOT NULL,
+    metadata TEXT,
+    evidencia_id VARCHAR(100),
+    hash_actual VARCHAR(100) NOT NULL,
+    timestamp_servidor TIMESTAMPTZ DEFAULT NOW(),
+    timestamp_cliente TIMESTAMPTZ,
+    actor VARCHAR(100),
+    dispositivo VARCHAR(100),
+    origen VARCHAR(100),
+    contexto TEXT,
+    recibo_recordia VARCHAR(200),
+    FOREIGN KEY(entidad_id) REFERENCES entidades(entidad_id)
 );
 
-CREATE INDEX idx_eventos_tipo ON eventos(tipo);
-CREATE INDEX idx_eventos_timestamp ON eventos(timestamp);
+CREATE INDEX idx_eventos_tipo ON eventos(tipo_evento);
+CREATE INDEX idx_eventos_timestamp ON eventos(timestamp_servidor);
 CREATE INDEX idx_eventos_entidad ON eventos(entidad_id);
-CREATE INDEX idx_eventos_metadata ON eventos USING GIN (metadata);
 
 -- Tabla: visitas
 CREATE TABLE IF NOT EXISTS visitas (
@@ -91,34 +96,37 @@ CREATE INDEX idx_residentes_activo ON residentes(activo);
 
 -- Tabla: entidades (AUP-EXO - sistema universal)
 CREATE TABLE IF NOT EXISTS entidades (
-    id SERIAL PRIMARY KEY,
+    entidad_id VARCHAR(100) PRIMARY KEY,
     tipo VARCHAR(50) NOT NULL,
-    nombre VARCHAR(200) NOT NULL,
-    score INTEGER DEFAULT 0,
-    nivel_riesgo VARCHAR(20) DEFAULT 'NORMAL',
+    atributos TEXT NOT NULL,
+    hash_actual VARCHAR(100) NOT NULL,
+    hash_previo VARCHAR(100),
+    estado VARCHAR(20) DEFAULT 'activo',
     fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
-    ultima_actividad TIMESTAMPTZ DEFAULT NOW(),
-    metadata JSONB
+    fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+    created_by VARCHAR(100)
 );
 
 CREATE INDEX idx_entidades_tipo ON entidades(tipo);
-CREATE INDEX idx_entidades_score ON entidades(score);
-CREATE INDEX idx_entidades_riesgo ON entidades(nivel_riesgo);
+CREATE INDEX idx_entidades_estado ON entidades(estado);
 
 -- Tabla: politicas (reglas AUP-EXO)
 CREATE TABLE IF NOT EXISTS politicas (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(200) NOT NULL UNIQUE,
+    politica_id VARCHAR(100) PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
     descripcion TEXT,
     tipo VARCHAR(50) NOT NULL,
-    parametros JSONB NOT NULL,
-    activa BOOLEAN DEFAULT TRUE,
+    condiciones TEXT NOT NULL,
+    prioridad INTEGER DEFAULT 5,
+    estado VARCHAR(20) DEFAULT 'activa',
+    aplicable_a VARCHAR(50),
     fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
-    fecha_modificacion TIMESTAMPTZ DEFAULT NOW()
+    fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+    created_by VARCHAR(100)
 );
 
 CREATE INDEX idx_politicas_tipo ON politicas(tipo);
-CREATE INDEX idx_politicas_activa ON politicas(activa);
+CREATE INDEX idx_politicas_estado ON politicas(estado);
 
 -- Tabla: sentinel_insights (AX-S Sentinel™)
 CREATE TABLE IF NOT EXISTS sentinel_insights (
