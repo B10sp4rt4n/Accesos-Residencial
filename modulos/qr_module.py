@@ -15,6 +15,7 @@ from app.core.qr_engine import (
     generar_qr_proveedor_recurrente,
     validar_qr
 )
+from modulos.vigilancia import buscar_entidad  # Usar la misma función que vigilancia
 
 
 def ui_qr_module():
@@ -58,34 +59,20 @@ def _render_generar_qr_visitante():
     
     st.info("💡 Primero busque y seleccione el visitante registrado")
     
-    # Buscar visitante
+    # Buscar visitante usando la misma función que vigilancia
     criterio_busqueda = st.text_input(
-        "🔍 Buscar visitante por nombre",
-        placeholder="Ej: Juan Pérez, María, Salvador"
+        "🔍 Buscar visitante",
+        placeholder="Ej: Juan Pérez, Salvador, María"
     )
     
     visitante_seleccionado = None
     
-    if criterio_busqueda and len(criterio_busqueda) >= 3:
-        try:
-            with get_db() as db:
-                # Intentar búsqueda (compatible con ambas BD)
-                try:
-                    # Para PostgreSQL y SQLite moderno
-                    cursor = db.execute("""
-                        SELECT * FROM entidades 
-                        WHERE (tipo = 'visitante' OR tipo = 'VISITA')
-                        AND nombre LIKE ?
-                        LIMIT 10
-                    """, (f"%{criterio_busqueda}%",))
-                    visitantes = cursor.fetchall()
-                except Exception as query_error:
-                    # Si falla, mostrar error detallado
-                    st.error(f"Error en búsqueda: {query_error}")
-                    visitantes = []
-        except Exception as e:
-            st.error(f"Error conectando a BD: {e}")
-            visitantes = []
+    if criterio_busqueda and len(criterio_busqueda) >= 2:
+        # Usar buscar_entidad de vigilancia
+        resultados = buscar_entidad(criterio_busqueda)
+        
+        # Filtrar solo visitantes
+        visitantes = [r for r in resultados if r.get('tipo', '').upper() in ['VISITANTE', 'VISITA']]
         
         if visitantes:
             st.write(f"**{len(visitantes)} visitante(s) encontrado(s):**")
@@ -94,13 +81,13 @@ def _render_generar_qr_visitante():
             visitantes_dict = {}
             
             for v in visitantes:
-                v_dict = dict(v)
-                # Compatibilidad: usar 'id' si no existe 'folio'
-                folio = v_dict.get('folio', v_dict.get('id', 'N/A'))
-                telefono = v_dict.get('telefono', 'N/A')
-                label = f"{v_dict['nombre']} - Tel: {telefono} - ID: {folio}"
+                attrs = v.get('atributos', {})
+                nombre = attrs.get('nombre', 'Sin nombre')
+                identificador = attrs.get('identificador', v.get('entidad_id', 'N/A'))
+                
+                label = f"{nombre} - ID: {identificador}"
                 opciones.append(label)
-                visitantes_dict[label] = v_dict
+                visitantes_dict[label] = v
             
             seleccion = st.selectbox("Seleccione el visitante:", opciones)
             visitante_seleccionado = visitantes_dict[seleccion]
@@ -109,33 +96,21 @@ def _render_generar_qr_visitante():
             st.divider()
             col1, col2, col3 = st.columns(3)
             
-            # ID/Folio
-            entidad_id = visitante_seleccionado.get('entidad_id', visitante_seleccionado.get('id', 'N/A'))
-            folio = visitante_seleccionado.get('folio', entidad_id)
+            attrs = visitante_seleccionado.get('atributos', {})
             
             with col1:
-                st.write(f"**Nombre:** {visitante_seleccionado['nombre']}")
-                st.write(f"**ID/Folio:** {folio}")
+                st.write(f"**Nombre:** {attrs.get('nombre', 'N/A')}")
+                st.write(f"**ID:** {visitante_seleccionado.get('entidad_id', 'N/A')}")
             with col2:
-                st.write(f"**Teléfono:** {visitante_seleccionado.get('telefono', 'N/A')}")
-                st.write(f"**Tipo:** {visitante_seleccionado['tipo']}")
+                st.write(f"**Teléfono:** {attrs.get('telefono', 'N/A')}")
+                st.write(f"**Tipo:** {visitante_seleccionado.get('tipo', 'N/A')}")
             with col3:
-                # Datos extra pueden estar en JSON o no existir
-                try:
-                    datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
-                except:
-                    datos_extra = {}
-                
-                # Información adicional
-                casa = datos_extra.get('casa_destino', visitante_seleccionado.get('casa_destino', 'N/A'))
-                residente = datos_extra.get('residente_autoriza', visitante_seleccionado.get('residente_autoriza', 'N/A'))
-                
-                st.write(f"**Casa destino:** {casa}")
-                st.write(f"**Residente:** {residente}")
-        elif len(criterio_busqueda) >= 3:
+                st.write(f"**Casa destino:** {attrs.get('casa_destino', attrs.get('casa', 'N/A'))}")
+                st.write(f"**Residente:** {attrs.get('residente_autoriza', attrs.get('residente', 'N/A'))}")
+        elif len(criterio_busqueda) >= 2:
             st.warning("No se encontraron visitantes con ese criterio")
-    elif criterio_busqueda and len(criterio_busqueda) < 3:
-        st.info("Ingrese al menos 3 caracteres para buscar")
+    elif criterio_busqueda and len(criterio_busqueda) < 2:
+        st.info("Ingrese al menos 2 caracteres para buscar")
     
     if visitante_seleccionado:
         st.divider()
@@ -162,28 +137,23 @@ def _render_generar_qr_visitante():
         st.divider()
         
         if st.button("🔲 Generar Código QR", type="primary"):
-            try:
-                datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
-            except:
-                datos_extra = {}
-            
-            # Compatibilidad con diferentes esquemas
-            entidad_id = visitante_seleccionado.get('entidad_id', visitante_seleccionado.get('id', 'N/A'))
-            folio = visitante_seleccionado.get('folio', entidad_id)
-            casa = datos_extra.get('casa_destino', visitante_seleccionado.get('casa_destino', ''))
-            residente = datos_extra.get('residente_autoriza', visitante_seleccionado.get('residente_autoriza', 'N/A'))
+            attrs = visitante_seleccionado.get('atributos', {})
+            entidad_id = visitante_seleccionado.get('entidad_id', 'N/A')
+            nombre = attrs.get('nombre', 'Sin nombre')
+            casa = attrs.get('casa_destino', attrs.get('casa', ''))
+            residente = attrs.get('residente_autoriza', attrs.get('residente', 'N/A'))
             
             # Generar código QR
             metadata = {
-                "folio_visitante": folio,
                 "entidad_id": entidad_id,
+                "identificador": attrs.get('identificador', entidad_id),
                 "casa": casa,
                 "motivo": motivo_qr,
                 "uso_unico": uso_unico
             }
             
             codigo_qr = generar_qr_visitante(
-                nombre=visitante_seleccionado['nombre'],
+                nombre=nombre,
                 residente_autorizador=residente,
                 vigencia_horas=vigencia_horas,
                 metadata=metadata
@@ -195,12 +165,12 @@ def _render_generar_qr_visitante():
                 expiracion = (datetime.now() + timedelta(hours=vigencia_horas)).isoformat()
                 
                 datos_json = json.dumps({
-                    "nombre": visitante_seleccionado['nombre'],
-                    "folio": folio,
+                    "nombre": nombre,
                     "entidad_id": entidad_id,
+                    "identificador": attrs.get('identificador', entidad_id),
                     "residente": residente,
                     "casa": casa,
-                    "telefono": visitante_seleccionado.get('telefono', ''),
+                    "telefono": attrs.get('telefono', ''),
                     "motivo": motivo_qr,
                     "uso_unico": uso_unico,
                     "expira": expiracion
@@ -245,8 +215,8 @@ def _render_generar_qr_visitante():
             with col2:
                 st.info(f"""
                 **Información del QR:**
-                - **Visitante:** {visitante_seleccionado['nombre']}
-                - **Folio:** {folio}
+                - **Visitante:** {nombre}
+                - **ID:** {entidad_id}
                 - **Autorizado por:** {residente}
                 - **Destino:** {casa or 'No especificado'}
                 - **Vigencia:** {vigencia_horas} horas
@@ -259,7 +229,7 @@ def _render_generar_qr_visitante():
                 st.download_button(
                     label="📥 Descargar QR",
                     data=buf,
-                    file_name=f"QR_{folio}.png",
+                    file_name=f"QR_{entidad_id}.png",
                     mime="image/png"
                 )
             
