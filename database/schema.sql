@@ -128,6 +128,66 @@ CREATE TABLE IF NOT EXISTS politicas (
 CREATE INDEX idx_politicas_tipo ON politicas(tipo);
 CREATE INDEX idx_politicas_estado ON politicas(estado);
 
+-- Tabla: bitacora (auditoría completa)
+CREATE TABLE IF NOT EXISTS bitacora (
+    bitacora_id SERIAL PRIMARY KEY,
+    tabla VARCHAR(100) NOT NULL,
+    operacion VARCHAR(50) NOT NULL,
+    registro_id VARCHAR(100) NOT NULL,
+    datos_anteriores TEXT,
+    datos_nuevos TEXT,
+    usuario_id VARCHAR(100),
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    ip_address VARCHAR(50),
+    user_agent TEXT
+);
+
+CREATE INDEX idx_bitacora_tabla ON bitacora(tabla);
+CREATE INDEX idx_bitacora_timestamp ON bitacora(timestamp);
+
+-- Tabla: log_reglas (debugging y análisis)
+CREATE TABLE IF NOT EXISTS log_reglas (
+    log_id SERIAL PRIMARY KEY,
+    evento_id VARCHAR(100),
+    politica_id VARCHAR(100),
+    resultado VARCHAR(50) NOT NULL,
+    motivo TEXT,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (evento_id) REFERENCES eventos(evento_id),
+    FOREIGN KEY (politica_id) REFERENCES politicas(politica_id)
+);
+
+CREATE INDEX idx_log_reglas_evento ON log_reglas(evento_id);
+CREATE INDEX idx_log_reglas_politica ON log_reglas(politica_id);
+CREATE INDEX idx_log_reglas_timestamp ON log_reglas(timestamp);
+
+-- Tabla: usuarios (roles y permisos)
+CREATE TABLE IF NOT EXISTS usuarios (
+    usuario_id VARCHAR(100) PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
+    email VARCHAR(200) UNIQUE NOT NULL,
+    rol VARCHAR(50) NOT NULL,
+    permisos TEXT,
+    estado VARCHAR(20) DEFAULT 'activo',
+    ultimo_acceso TIMESTAMPTZ,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_usuarios_rol ON usuarios(rol);
+CREATE INDEX idx_usuarios_estado ON usuarios(estado);
+
+-- Tabla: roles
+CREATE TABLE IF NOT EXISTS roles (
+    rol_id VARCHAR(50) PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    permisos TEXT NOT NULL,
+    nivel_acceso INTEGER DEFAULT 1,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_roles_nivel ON roles(nivel_acceso);
+
 -- Tabla: sentinel_insights (AX-S Sentinel™)
 CREATE TABLE IF NOT EXISTS sentinel_insights (
     id SERIAL PRIMARY KEY,
