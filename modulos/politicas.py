@@ -217,66 +217,213 @@ def ui_politicas():
 
         descripcion = st.text_area("Descripción", placeholder="Explique qué hace esta política...")
 
-        st.write("**Condiciones (JSON)**")
+        st.divider()
+        st.subheader("⚙️ Configuración de Condiciones")
         
-        # Plantillas de ejemplo
-        plantilla = st.selectbox("Usar plantilla:", [
-            "Personalizado",
-            "Horario específico",
-            "Límite de visitas",
-            "Requiere autorización",
-            "Lista negra"
-        ])
+        # Modo de entrada: Simple o Avanzado
+        modo = st.radio("Modo de configuración:", ["🎯 Simple (Formulario)", "⚙️ Avanzado (JSON)"], horizontal=True)
+        
+        condiciones = {}
+        condiciones_validas = False
+        
+        if modo == "🎯 Simple (Formulario)":
+            # FORMULARIOS SEGÚN TIPO DE POLÍTICA
+            
+            if tipo == "horario":
+                st.write("**Configurar Horario de Acceso**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    hora_inicio = st.time_input("Hora de inicio", value=None)
+                with col2:
+                    hora_fin = st.time_input("Hora de fin", value=None)
+                
+                dias_semana = st.multiselect(
+                    "Días permitidos",
+                    ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"],
+                    default=["lunes", "martes", "miercoles", "jueves", "viernes"]
+                )
+                
+                if hora_inicio and hora_fin and dias_semana:
+                    condiciones = {
+                        "tipo": "horario",
+                        "hora_inicio": hora_inicio.strftime("%H:%M"),
+                        "hora_fin": hora_fin.strftime("%H:%M"),
+                        "dias": dias_semana
+                    }
+                    condiciones_validas = True
+                    st.success("✅ Horario configurado correctamente")
+                else:
+                    st.warning("⚠️ Complete todos los campos de horario")
+            
+            elif tipo == "limite":
+                st.write("**Configurar Límites de Visita**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    max_dia = st.number_input("Máximo de visitas por día", min_value=1, max_value=50, value=3)
+                with col2:
+                    max_mes = st.number_input("Máximo de visitas por mes", min_value=1, max_value=500, value=20)
+                
+                accion = st.selectbox("Acción al exceder límite:", ["denegar", "requiere_autorizacion", "alerta"])
+                
+                condiciones = {
+                    "tipo": "limite",
+                    "max_visitas_dia": max_dia,
+                    "max_visitas_mes": max_mes,
+                    "accion_exceso": accion
+                }
+                condiciones_validas = True
+                st.success("✅ Límites configurados correctamente")
+            
+            elif tipo == "aprobacion":
+                st.write("**Configurar Aprobación Requerida**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    requiere = st.checkbox("Requiere autorización previa", value=True)
+                    nivel = st.selectbox("Nivel de autorización:", ["supervisor", "administrador", "gerencia"])
+                with col2:
+                    timeout = st.number_input("Timeout en minutos", min_value=5, max_value=240, value=30)
+                    notificar = st.checkbox("Enviar notificación", value=True)
+                
+                condiciones = {
+                    "tipo": "aprobacion",
+                    "requiere_autorizacion": requiere,
+                    "nivel_requerido": nivel,
+                    "timeout_minutos": timeout,
+                    "notificar": notificar
+                }
+                condiciones_validas = True
+                st.success("✅ Aprobación configurada correctamente")
+            
+            elif tipo == "restriccion":
+                st.write("**Configurar Restricción**")
+                tipo_restriccion = st.selectbox("Tipo de restricción:", ["lista_negra", "zona_restringida", "horario_prohibido"])
+                
+                if tipo_restriccion == "lista_negra":
+                    motivo = st.text_area("Motivo de restricción", placeholder="Ej: Incidente de seguridad previo")
+                    generar_alerta = st.checkbox("Generar alerta al detectar", value=True)
+                    
+                    condiciones = {
+                        "tipo": "lista_negra",
+                        "accion": "denegar",
+                        "motivo": motivo,
+                        "alerta": generar_alerta
+                    }
+                elif tipo_restriccion == "zona_restringida":
+                    zonas = st.multiselect("Zonas restringidas:", ["Area A", "Area B", "Area C", "Estacionamiento", "Torre 1", "Torre 2"])
+                    condiciones = {
+                        "tipo": "zona_restringida",
+                        "zonas_prohibidas": zonas,
+                        "accion": "denegar"
+                    }
+                else:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        hora_inicio_prohibido = st.time_input("Desde", value=None)
+                    with col2:
+                        hora_fin_prohibido = st.time_input("Hasta", value=None)
+                    
+                    if hora_inicio_prohibido and hora_fin_prohibido:
+                        condiciones = {
+                            "tipo": "horario_prohibido",
+                            "hora_inicio": hora_inicio_prohibido.strftime("%H:%M"),
+                            "hora_fin": hora_fin_prohibido.strftime("%H:%M")
+                        }
+                
+                if condiciones:
+                    condiciones_validas = True
+                    st.success("✅ Restricción configurada correctamente")
+            
+            elif tipo == "acceso":
+                st.write("**Configurar Regla de Acceso**")
+                acceso_24_7 = st.checkbox("Acceso 24/7 (sin restricciones)", value=False)
+                
+                if acceso_24_7:
+                    condiciones = {
+                        "tipo": "acceso_permanente",
+                        "horario": "24/7"
+                    }
+                else:
+                    requiere_validacion = st.checkbox("Requiere validación adicional", value=False)
+                    tipos_permitidos = st.multiselect(
+                        "Tipos de entidad permitidos:",
+                        ["residente", "visitante", "proveedor", "servicio"],
+                        default=["residente"]
+                    )
+                    
+                    condiciones = {
+                        "tipo": "acceso_controlado",
+                        "requiere_validacion": requiere_validacion,
+                        "tipos_permitidos": tipos_permitidos
+                    }
+                
+                condiciones_validas = True
+                st.success("✅ Acceso configurado correctamente")
+            
+            # Mostrar vista previa del JSON generado
+            if condiciones_validas:
+                with st.expander("📄 Ver JSON generado"):
+                    st.json(condiciones)
+        
+        else:  # Modo Avanzado (JSON)
+            st.write("**Editor JSON Avanzado**")
+            
+            # Plantillas de ejemplo
+            plantilla = st.selectbox("Plantilla de ejemplo:", [
+                "Personalizado",
+                "Horario específico",
+                "Límite de visitas",
+                "Requiere autorización",
+                "Lista negra"
+            ])
 
-        if plantilla == "Horario específico":
-            ejemplo_condiciones = """{
+            if plantilla == "Horario específico":
+                ejemplo_condiciones = """{
   "tipo": "horario",
   "hora_inicio": "06:00",
   "hora_fin": "18:00",
   "dias": ["lunes", "martes", "miercoles", "jueves", "viernes"]
 }"""
-        elif plantilla == "Límite de visitas":
-            ejemplo_condiciones = """{
+            elif plantilla == "Límite de visitas":
+                ejemplo_condiciones = """{
   "tipo": "limite",
   "max_visitas_dia": 3,
   "max_visitas_mes": 20,
   "accion_exceso": "denegar"
 }"""
-        elif plantilla == "Requiere autorización":
-            ejemplo_condiciones = """{
+            elif plantilla == "Requiere autorización":
+                ejemplo_condiciones = """{
   "tipo": "aprobacion",
   "requiere_autorizacion": true,
   "nivel_requerido": "supervisor",
   "timeout_minutos": 30
 }"""
-        elif plantilla == "Lista negra":
-            ejemplo_condiciones = """{
+            elif plantilla == "Lista negra":
+                ejemplo_condiciones = """{
   "tipo": "lista_negra",
   "accion": "denegar",
   "motivo": "Incidente previo registrado",
   "alerta": true
 }"""
-        else:
-            ejemplo_condiciones = """{
+            else:
+                ejemplo_condiciones = """{
   "tipo": "custom",
   "campo": "valor"
 }"""
 
-        condiciones_raw = st.text_area(
-            "JSON de condiciones*",
-            value=ejemplo_condiciones,
-            height=250
-        )
+            condiciones_raw = st.text_area(
+                "JSON de condiciones*",
+                value=ejemplo_condiciones,
+                height=250
+            )
 
-        # Validar JSON
-        condiciones_validas = False
-        try:
-            condiciones = json.loads(condiciones_raw)
-            condiciones_validas = True
-            st.success("✅ JSON válido")
-        except json.JSONDecodeError as e:
-            st.error(f"❌ JSON inválido: {e}")
-            condiciones = {}
+            # Validar JSON
+            try:
+                condiciones = json.loads(condiciones_raw)
+                condiciones_validas = True
+                st.success("✅ JSON válido")
+            except json.JSONDecodeError as e:
+                st.error(f"❌ JSON inválido: {e}")
+                condiciones = {}
 
         col1, col2 = st.columns(2)
 
