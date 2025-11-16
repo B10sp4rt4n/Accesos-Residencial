@@ -54,55 +54,99 @@ def ui_qr_module():
 
 def _render_generar_qr_visitante():
     """Formulario para generar QR de visitante"""
-    st.subheader("📱 Generar QR para Visitante")
+    st.subheader("📱 Generar QR para Visitante Registrado")
     
-    col1, col2 = st.columns(2)
+    st.info("💡 Primero busque y seleccione el visitante registrado")
     
-    with col1:
-        nombre_visitante = st.text_input(
-            "Nombre del visitante*",
-            placeholder="Ej: Juan Pérez"
-        )
-        residente_autoriza = st.text_input(
-            "Residente que autoriza*",
-            placeholder="Ej: María López - Casa 123"
-        )
-    
-    with col2:
-        vigencia_horas = st.number_input(
-            "Vigencia (horas)",
-            min_value=1,
-            max_value=168,  # 7 días
-            value=24
-        )
-        casa_destino = st.text_input(
-            "Casa/Departamento destino",
-            placeholder="Ej: Casa 123"
-        )
-    
-    motivo = st.text_area(
-        "Motivo de visita (opcional)",
-        placeholder="Ej: Reunión familiar, entrega de paquete, etc."
+    # Buscar visitante
+    criterio_busqueda = st.text_input(
+        "🔍 Buscar visitante por nombre o teléfono",
+        placeholder="Ej: Juan Pérez o 5512345678"
     )
     
-    uso_unico = st.checkbox("QR de un solo uso", value=True)
+    visitante_seleccionado = None
     
-    st.divider()
-    
-    if st.button("🔲 Generar Código QR", type="primary"):
-        if not nombre_visitante or not residente_autoriza:
-            st.error("❌ Nombre del visitante y residente autorizador son obligatorios")
+    if criterio_busqueda:
+        with get_db() as db:
+            cursor = db.execute("""
+                SELECT * FROM entidades 
+                WHERE tipo = 'visitante' 
+                AND (nombre LIKE ? OR telefono LIKE ?)
+                ORDER BY fecha_creacion DESC
+                LIMIT 10
+            """, (f"%{criterio_busqueda}%", f"%{criterio_busqueda}%"))
+            visitantes = cursor.fetchall()
+        
+        if visitantes:
+            st.write(f"**{len(visitantes)} visitante(s) encontrado(s):**")
+            
+            opciones = []
+            visitantes_dict = {}
+            
+            for v in visitantes:
+                v_dict = dict(v)
+                label = f"{v_dict['nombre']} - Tel: {v_dict.get('telefono', 'N/A')} - Folio: {v_dict['folio']}"
+                opciones.append(label)
+                visitantes_dict[label] = v_dict
+            
+            seleccion = st.selectbox("Seleccione el visitante:", opciones)
+            visitante_seleccionado = visitantes_dict[seleccion]
+            
+            # Mostrar datos del visitante
+            st.divider()
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(f"**Nombre:** {visitante_seleccionado['nombre']}")
+                st.write(f"**Folio:** {visitante_seleccionado['folio']}")
+            with col2:
+                st.write(f"**Teléfono:** {visitante_seleccionado.get('telefono', 'N/A')}")
+                st.write(f"**Tipo:** {visitante_seleccionado['tipo']}")
+            with col3:
+                datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+                st.write(f"**Casa destino:** {datos_extra.get('casa_destino', 'N/A')}")
+                st.write(f"**Residente:** {datos_extra.get('residente_autoriza', 'N/A')}")
         else:
+            st.warning("No se encontraron visitantes con ese criterio")
+    
+    if visitante_seleccionado:
+        st.divider()
+        st.subheader("⚙️ Configuración del QR")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            vigencia_horas = st.number_input(
+                "Vigencia (horas)",
+                min_value=1,
+                max_value=168,  # 7 días
+                value=24
+            )
+        
+        with col2:
+            uso_unico = st.checkbox("QR de un solo uso", value=True)
+        
+        motivo_qr = st.text_area(
+            "Motivo/Notas del QR (opcional)",
+            placeholder="Ej: Visita programada para evento familiar"
+        )
+        
+        st.divider()
+        
+        if st.button("🔲 Generar Código QR", type="primary"):
+            datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+            
             # Generar código QR
             metadata = {
-                "casa": casa_destino,
-                "motivo": motivo,
+                "folio_visitante": visitante_seleccionado['folio'],
+                "entidad_id": visitante_seleccionado['entidad_id'],
+                "casa": datos_extra.get('casa_destino', ''),
+                "motivo": motivo_qr,
                 "uso_unico": uso_unico
             }
             
             codigo_qr = generar_qr_visitante(
-                nombre=nombre_visitante,
-                residente_autorizador=residente_autoriza,
+                nombre=visitante_seleccionado['nombre'],
+                residente_autorizador=datos_extra.get('residente_autoriza', 'N/A'),
                 vigencia_horas=vigencia_horas,
                 metadata=metadata
             )
@@ -113,10 +157,13 @@ def _render_generar_qr_visitante():
                 expiracion = (datetime.now() + timedelta(hours=vigencia_horas)).isoformat()
                 
                 datos_json = json.dumps({
-                    "nombre": nombre_visitante,
-                    "residente": residente_autoriza,
-                    "casa": casa_destino,
-                    "motivo": motivo,
+                    "nombre": visitante_seleccionado['nombre'],
+                    "folio": visitante_seleccionado['folio'],
+                    "entidad_id": visitante_seleccionado['entidad_id'],
+                    "residente": datos_extra.get('residente_autoriza', 'N/A'),
+                    "casa": datos_extra.get('casa_destino', ''),
+                    "telefono": visitante_seleccionado.get('telefono', ''),
+                    "motivo": motivo_qr,
                     "uso_unico": uso_unico,
                     "expira": expiracion
                 })
@@ -156,9 +203,10 @@ def _render_generar_qr_visitante():
             with col2:
                 st.info(f"""
                 **Información del QR:**
-                - **Visitante:** {nombre_visitante}
-                - **Autorizado por:** {residente_autoriza}
-                - **Destino:** {casa_destino or 'No especificado'}
+                - **Visitante:** {visitante_seleccionado['nombre']}
+                - **Folio:** {visitante_seleccionado['folio']}
+                - **Autorizado por:** {datos_extra.get('residente_autoriza', 'N/A')}
+                - **Destino:** {datos_extra.get('casa_destino', 'No especificado')}
                 - **Vigencia:** {vigencia_horas} horas
                 - **Expira:** {(datetime.now() + timedelta(hours=vigencia_horas)).strftime('%Y-%m-%d %H:%M')}
                 - **Uso único:** {'Sí' if uso_unico else 'No'}
@@ -169,11 +217,13 @@ def _render_generar_qr_visitante():
                 st.download_button(
                     label="📥 Descargar QR",
                     data=buf,
-                    file_name=f"QR_{codigo_qr}.png",
+                    file_name=f"QR_{visitante_seleccionado['folio']}.png",
                     mime="image/png"
                 )
             
             st.balloons()
+    else:
+        st.info("👆 Busque un visitante para generar su código QR")
 
 
 def _render_generar_qr_proveedor():
