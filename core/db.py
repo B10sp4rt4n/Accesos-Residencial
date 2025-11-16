@@ -84,20 +84,27 @@ def get_db():
         if use_postgres:
             # Crear cursor con dict factory
             from psycopg2.extras import RealDictCursor
-            original_cursor = conn.cursor
+            
+            # Wrapper del método cursor() para que siempre use RealDictCursor
+            original_cursor_method = conn.cursor
             def cursor_with_dict():
-                return original_cursor(cursor_factory=RealDictCursor)
+                return original_cursor_method(cursor_factory=RealDictCursor)
             conn.cursor = cursor_with_dict
             
-            # Wrapper para execute que convierte ? a %s
-            cur = conn.cursor()
-            original_execute = cur.execute
+            # Wrapper del método execute() para convertir ? a %s
+            original_execute_method = conn.execute if hasattr(conn, 'execute') else None
             def execute_compat(query, params=None):
                 query = query.replace('?', '%s')
+                cur = conn.cursor()
                 if params:
-                    return original_execute(query, params)
-                return original_execute(query)
-            cur.execute = execute_compat
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
+                return cur
+            
+            # Asignar wrapper al connection object
+            conn.execute = execute_compat
+            
             yield conn
         else:
             yield conn
