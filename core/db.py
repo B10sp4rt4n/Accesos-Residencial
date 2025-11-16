@@ -6,35 +6,55 @@ Soporta SQLite (desarrollo) y PostgreSQL (producción)
 
 import sqlite3
 import json
+import os
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 DB_PATH = "data/accesos.sqlite"
+DB_MODE = os.getenv('DB_MODE', 'sqlite')  # 'sqlite' o 'postgres'
 
 @contextmanager
 def get_db():
     """
     Context manager para conexiones de base de datos.
-    Usa PostgreSQL si DATABASE_URL está en secrets (Streamlit Cloud),
-    sino usa SQLite local.
+    
+    Estrategia:
+    1. Si DB_MODE=postgres → usa database/pg_connection.py
+    2. Si DB_MODE=sqlite → usa SQLite local
+    3. Si está en Streamlit Cloud → detecta DATABASE_URL en secrets
     """
     use_postgres = False
     conn = None
     
-    try:
-        # Intentar PostgreSQL primero (producción)
-        import streamlit as st
-        if hasattr(st, 'secrets') and 'DATABASE_URL' in st.secrets:
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-            conn = psycopg2.connect(st.secrets['DATABASE_URL'])
+    # Opción 1: Variable de entorno DB_MODE
+    if DB_MODE == 'postgres':
+        try:
+            from database.pg_connection import get_pg
+            conn = get_pg()
             use_postgres = True
-    except:
-        pass
+        except Exception as e:
+            print(f"⚠️  Error conectando PostgreSQL: {e}")
+            print("📌 Fallback a SQLite...")
     
+    # Opción 2: Streamlit Cloud (DATABASE_URL en secrets)
     if not conn:
-        # Fallback a SQLite (desarrollo)
+        try:
+            import streamlit as st
+            if hasattr(st, 'secrets') and 'DATABASE_URL' in st.secrets:
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                conn = psycopg2.connect(st.secrets['DATABASE_URL'])
+                use_postgres = True
+        except:
+            pass
+    
+    # Opción 3: Fallback a SQLite
+    if not conn:
         conn = sqlite3.connect(DB_PATH if Path(DB_PATH).exists() else "axs_v2.db")
         conn.row_factory = sqlite3.Row
     
@@ -42,6 +62,7 @@ def get_db():
         # Wrapper para compatibilidad de queries
         if use_postgres:
             # Crear cursor con dict factory
+            from psycopg2.extras import RealDictCursor
             original_cursor = conn.cursor
             def cursor_with_dict():
                 return original_cursor(cursor_factory=RealDictCursor)
