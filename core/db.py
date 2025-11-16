@@ -75,10 +75,24 @@ def get_db():
             if hasattr(st, 'secrets') and 'DATABASE_URL' in st.secrets:
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
-                conn = psycopg2.connect(st.secrets['DATABASE_URL'])
-                use_postgres = True
-                print("✅ Conectado a PostgreSQL via DATABASE_URL")
-        except:
+                import socket
+                
+                print(f"🔍 DEBUG: Conectando via DATABASE_URL")
+                
+                # Forzar IPv4
+                original_getaddrinfo = socket.getaddrinfo
+                def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+                    return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+                socket.getaddrinfo = getaddrinfo_ipv4_only
+                
+                try:
+                    conn = psycopg2.connect(st.secrets['DATABASE_URL'])
+                    use_postgres = True
+                    print("✅ Conectado a PostgreSQL via DATABASE_URL")
+                finally:
+                    socket.getaddrinfo = original_getaddrinfo
+        except Exception as e:
+            print(f"⚠️  Error en Opción 2: {e}")
             pass
     
     # Opción 3: Variable de entorno DB_MODE (desarrollo local)
