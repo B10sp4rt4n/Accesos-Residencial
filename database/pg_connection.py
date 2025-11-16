@@ -47,7 +47,19 @@ def get_pg():
         >>> conn.close()
     """
     config = get_pg_config()
-    return psycopg2.connect(**config)
+    
+    # Forzar resolución de DNS a IPv4 (fix para Streamlit Cloud)
+    import socket
+    original_getaddrinfo = socket.getaddrinfo
+    def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+    socket.getaddrinfo = getaddrinfo_ipv4_only
+    
+    try:
+        conn = psycopg2.connect(**config)
+        return conn
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
 
 @contextmanager
 def get_pg_context():
