@@ -117,6 +117,21 @@ def get_db():
         if use_postgres:
             from psycopg2.extras import RealDictCursor
             
+            # Clase Row compatible con SQLite
+            class Row(dict):
+                """Wrapper que actúa como dict y como tupla"""
+                def __init__(self, data_dict):
+                    super().__init__(data_dict)
+                    self._values = tuple(data_dict.values())
+                
+                def __getitem__(self, key):
+                    if isinstance(key, int):
+                        return self._values[key]
+                    return super().__getitem__(key)
+                
+                def keys(self):
+                    return super().keys()
+            
             # Crear un wrapper de conexión que emule SQLite
             class PostgresWrapper:
                 def __init__(self, pg_conn):
@@ -136,20 +151,20 @@ def get_db():
                         return original_execute(query)
                     
                     def fetchone_compat():
-                        """Devuelve tupla con valores (compatible con SQLite)"""
+                        """Devuelve Row compatible con SQLite"""
                         row = original_fetchone()
                         if row:
-                            # Para SELECT COUNT(*) devolver (count,)
+                            # Para SELECT COUNT(*) devolver tupla simple
                             if len(row) == 1 and 'count' in row:
                                 return (row['count'],)
-                            # Para otros casos devolver valores como tupla
-                            return tuple(row.values())
+                            # Para otros casos devolver Row (dict + tupla)
+                            return Row(dict(row))
                         return None
                     
                     def fetchall_compat():
-                        """Devuelve lista de tuplas"""
+                        """Devuelve lista de Row"""
                         rows = original_fetchall()
-                        return [tuple(r.values()) if isinstance(r, dict) else r for r in rows]
+                        return [Row(dict(r)) if isinstance(r, dict) else r for r in rows]
                     
                     cur.execute = execute_compat
                     cur.fetchone = fetchone_compat
