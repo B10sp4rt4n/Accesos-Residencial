@@ -11,6 +11,32 @@ from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
 
+# Auto-inicialización de base de datos
+try:
+    from core.db import get_db
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Probar si existe la tabla eventos
+        cursor.execute("SELECT COUNT(*) FROM eventos LIMIT 1")
+        cursor.fetchone()
+    print("✅ Base de datos operativa")
+except Exception as e:
+    print(f"⚠️  Inicializando base de datos: {e}")
+    try:
+        # Si falla, intentar con PostgreSQL nativo
+        import os
+        if os.getenv('DB_MODE') == 'postgres' or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') == 'postgres'):
+            from database.pg_connection import init_pg_schema
+            init_pg_schema()
+            print("✅ Schema PostgreSQL inicializado")
+        else:
+            from core.db import init_db
+            init_db()
+            print("✅ Schema SQLite inicializado")
+    except Exception as init_error:
+        print(f"❌ Error inicializando: {init_error}")
+        st.error(f"Error inicializando base de datos: {init_error}")
+
 # Configuración de página
 st.set_page_config(
     page_title="Accesos Residencial - AUP-EXO",
