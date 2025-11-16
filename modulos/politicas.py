@@ -304,6 +304,8 @@ def ui_politicas():
                 )
                 st.success(f"✅ Política creada exitosamente: **{politica_id}**")
                 st.balloons()
+                # Forzar refresco para que se vea en el listado
+                st.rerun()
 
     # ==========================================
     # TAB 2: LISTAR POLÍTICAS
