@@ -43,13 +43,15 @@ def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
     timestamp_str = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
     entidad_id = f"ENT_{tipo[:3].upper()}_{timestamp_str}_{entidad_hash[:8]}"
 
+    timestamp = datetime.utcnow().isoformat()
+    
     with get_db() as db:
         db.execute("""
             INSERT INTO entidades (
                 entidad_id, tipo, atributos, hash_actual, 
                 fecha_creacion, fecha_actualizacion, estado
             )
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'activo')
+            VALUES (?, ?, ?, ?, ?, ?, 'activo')
         """, (
             entidad_id,
             tipo,
@@ -58,7 +60,9 @@ def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
                 "identificador": identificador,
                 **atributos
             }),
-            entidad_hash
+            entidad_hash,
+            timestamp,
+            timestamp
         ))
 
     return entidad_id, entidad_hash
@@ -223,17 +227,19 @@ def actualizar_entidad(entidad_id, nombre=None, identificador=None, atributos=No
     }
     
     nuevo_hash = hash_evento(entidad_data)
+    timestamp = datetime.utcnow().isoformat()
 
     with get_db() as db:
         db.execute("""
             UPDATE entidades
             SET atributos = ?, 
-                fecha_actualizacion = CURRENT_TIMESTAMP,
+                fecha_actualizacion = ?,
                 hash_previo = hash_actual, 
                 hash_actual = ?
             WHERE entidad_id = ?
         """, (
             json.dumps(atributos_finales),
+            timestamp,
             nuevo_hash,
             entidad_id
         ))
@@ -256,13 +262,15 @@ def desactivar_entidad(entidad_id):
     Returns:
         True si se desactivó correctamente
     """
+    timestamp = datetime.utcnow().isoformat()
+    
     with get_db() as db:
         db.execute("""
             UPDATE entidades
             SET estado = 'inactivo',
-                fecha_actualizacion = CURRENT_TIMESTAMP
+                fecha_actualizacion = ?
             WHERE entidad_id = ?
-        """, (entidad_id,))
+        """, (timestamp, entidad_id,))
 
     return True
 
@@ -281,13 +289,15 @@ def reactivar_entidad(entidad_id):
     Returns:
         True si se reactivó correctamente
     """
+    timestamp = datetime.utcnow().isoformat()
+    
     with get_db() as db:
         db.execute("""
             UPDATE entidades
             SET estado = 'activo',
-                fecha_actualizacion = CURRENT_TIMESTAMP
+                fecha_actualizacion = ?
             WHERE entidad_id = ?
-        """, (entidad_id,))
+        """, (timestamp, entidad_id,))
 
     return True
 
