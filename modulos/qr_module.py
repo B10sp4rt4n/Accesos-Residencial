@@ -61,7 +61,7 @@ def _render_generar_qr_visitante():
     # Buscar visitante
     criterio_busqueda = st.text_input(
         "🔍 Buscar visitante por nombre",
-        placeholder="Ej: Juan Pérez o Salvador"
+        placeholder="Ej: Juan Pérez, María, Salvador"
     )
     
     visitante_seleccionado = None
@@ -69,18 +69,22 @@ def _render_generar_qr_visitante():
     if criterio_busqueda and len(criterio_busqueda) >= 3:
         try:
             with get_db() as db:
-                # Buscar visitantes solo por nombre (más confiable)
-                cursor = db.execute("""
-                    SELECT * FROM entidades 
-                    WHERE (tipo = 'visitante' OR tipo = 'VISITA')
-                    AND LOWER(nombre) LIKE LOWER(?)
-                    LIMIT 10
-                """, (f"%{criterio_busqueda}%",))
-                visitantes = cursor.fetchall()
+                # Intentar búsqueda (compatible con ambas BD)
+                try:
+                    # Para PostgreSQL y SQLite moderno
+                    cursor = db.execute("""
+                        SELECT * FROM entidades 
+                        WHERE (tipo = 'visitante' OR tipo = 'VISITA')
+                        AND nombre LIKE ?
+                        LIMIT 10
+                    """, (f"%{criterio_busqueda}%",))
+                    visitantes = cursor.fetchall()
+                except Exception as query_error:
+                    # Si falla, mostrar error detallado
+                    st.error(f"Error en búsqueda: {query_error}")
+                    visitantes = []
         except Exception as e:
-            st.error(f"Error buscando visitantes: {e}")
-            import traceback
-            st.code(traceback.format_exc())
+            st.error(f"Error conectando a BD: {e}")
             visitantes = []
         
         if visitantes:
