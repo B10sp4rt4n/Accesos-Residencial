@@ -1,6 +1,7 @@
 """
 core/db.py
 Gestión de base de datos estructural AUP-EXO
+Soporta SQLite (desarrollo) y PostgreSQL (producción)
 """
 
 import sqlite3
@@ -13,17 +14,59 @@ DB_PATH = "data/accesos.sqlite"
 
 @contextmanager
 def get_db():
-    """Context manager para conexiones de base de datos"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """
+    Context manager para conexiones de base de datos.
+    Usa PostgreSQL si DATABASE_URL está en secrets (Streamlit Cloud),
+    sino usa SQLite local.
+    """
+    use_postgres = False
+    conn = None
+    
     try:
-        yield conn
-        conn.commit()
+        # Intentar PostgreSQL primero (producción)
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'DATABASE_URL' in st.secrets:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            conn = psycopg2.connect(st.secrets['DATABASE_URL'])
+            use_postgres = True
+    except:
+        pass
+    
+    if not conn:
+        # Fallback a SQLite (desarrollo)
+        conn = sqlite3.connect(DB_PATH if Path(DB_PATH).exists() else "axs_v2.db")
+        conn.row_factory = sqlite3.Row
+    
+    try:
+        # Wrapper para compatibilidad de queries
+        if use_postgres:
+            # Crear cursor con dict factory
+            original_cursor = conn.cursor
+            def cursor_with_dict():
+                return original_cursor(cursor_factory=RealDictCursor)
+            conn.cursor = cursor_with_dict
+            
+            # Wrapper para execute que convierte ? a %s
+            cur = conn.cursor()
+            original_execute = cur.execute
+            def execute_compat(query, params=None):
+                query = query.replace('?', '%s')
+                if params:
+                    return original_execute(query, params)
+                return original_execute(query)
+            cur.execute = execute_compat
+            yield conn
+        else:
+            yield conn
+            conn.commit()
     except Exception as e:
-        conn.rollback()
+        if hasattr(conn, 'rollback'):
+            conn.rollback()
         raise e
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 def init_db():
