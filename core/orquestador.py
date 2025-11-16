@@ -76,15 +76,20 @@ class OrquestadorAccesos:
         # Enviar a Recordia para trazabilidad jurídica externa
         recibo_recordia = enviar_a_recordia(evento_hash, metadata)
         
+        # Generar ID único para el evento
+        timestamp_str = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        evento_id = f"EVT_{tipo_evento[:3].upper()}_{timestamp_str}_{evento_hash[:8]}"
+        
         # Insertar en base de datos
         with get_db() as db:
-            cursor = db.execute("""
+            db.execute("""
                 INSERT INTO eventos (
-                    entidad_id, tipo_evento, metadata, evidencia_id,
+                    evento_id, entidad_id, tipo_evento, metadata, evidencia_id,
                     hash_actual, timestamp_servidor, timestamp_cliente,
                     actor, dispositivo, origen, contexto, recibo_recordia
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
+                evento_id,
                 entidad_id,
                 tipo_evento,
                 json.dumps(metadata),
@@ -98,8 +103,6 @@ class OrquestadorAccesos:
                 json.dumps(metadata.get('contexto', {})),
                 recibo_recordia
             ))
-            
-            evento_id = cursor.lastrowid
         
         # Registrar en bitácora
         self._registrar_bitacora(
