@@ -121,22 +121,30 @@ def get_db():
             # Wrapper del método cursor() para que siempre use RealDictCursor
             original_cursor_method = conn.cursor
             def cursor_with_dict():
-                return original_cursor_method(cursor_factory=RealDictCursor)
+                cur = original_cursor_method(cursor_factory=RealDictCursor)
+                # Agregar wrapper al execute del cursor para convertir ? a %s
+                original_cur_execute = cur.execute
+                def execute_compat(query, params=None):
+                    query = query.replace('?', '%s')
+                    if params:
+                        return original_cur_execute(query, params)
+                    return original_cur_execute(query)
+                cur.execute = execute_compat
+                return cur
+            
             conn.cursor = cursor_with_dict
             
-            # Wrapper del método execute() para convertir ? a %s
-            original_execute_method = conn.execute if hasattr(conn, 'execute') else None
-            def execute_compat(query, params=None):
-                query = query.replace('?', '%s')
+            # IMPORTANTE: Agregar método execute() a la conexión (para compatibilidad con SQLite)
+            def connection_execute(query, params=None):
                 cur = conn.cursor()
+                query = query.replace('?', '%s')
                 if params:
                     cur.execute(query, params)
                 else:
                     cur.execute(query)
                 return cur
             
-            # Asignar wrapper al connection object
-            conn.execute = execute_compat
+            conn.execute = connection_execute
         
         yield conn
         
