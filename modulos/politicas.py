@@ -292,20 +292,31 @@ def ui_politicas():
             if not nombre:
                 st.error("El nombre es obligatorio")
             else:
-                politica_id = crear_politica(
-                    nombre=nombre,
-                    descripcion=descripcion,
-                    tipo=tipo,
-                    condiciones=condiciones,
-                    prioridad=prioridad,
-                    estado=estado,
-                    aplicable_a=aplicable_a,
-                    created_by=created_by
-                )
-                st.success(f"✅ Política creada exitosamente: **{politica_id}**")
-                st.balloons()
-                # Forzar refresco para que se vea en el listado
-                st.rerun()
+                try:
+                    politica_id = crear_politica(
+                        nombre=nombre,
+                        descripcion=descripcion,
+                        tipo=tipo,
+                        condiciones=condiciones,
+                        prioridad=prioridad,
+                        estado=estado,
+                        aplicable_a=aplicable_a,
+                        created_by=created_by
+                    )
+                    # Guardar mensaje en session_state para mostrarlo después del rerun
+                    st.session_state['msg_politica'] = f"✅ Política creada: {politica_id}"
+                    st.session_state['show_balloons'] = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al crear política: {e}")
+    
+    # Mostrar mensaje guardado después de rerun
+    if 'msg_politica' in st.session_state:
+        st.success(st.session_state['msg_politica'])
+        del st.session_state['msg_politica']
+        if st.session_state.get('show_balloons', False):
+            st.balloons()
+            del st.session_state['show_balloons']
 
     # ==========================================
     # TAB 2: LISTAR POLÍTICAS
