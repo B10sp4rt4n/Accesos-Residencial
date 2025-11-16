@@ -69,17 +69,19 @@ def _render_generar_qr_visitante():
     if criterio_busqueda and len(criterio_busqueda) >= 3:
         try:
             with get_db() as db:
-                # Buscar en entidades (compatibilidad con ambos esquemas)
+                # Buscar visitantes (el wrapper maneja la conversión ? a %s)
                 cursor = db.execute("""
                     SELECT * FROM entidades 
                     WHERE (tipo = 'visitante' OR tipo = 'VISITA')
-                    AND (nombre LIKE ? OR telefono LIKE ?)
-                    ORDER BY creado_en DESC
+                    AND (LOWER(nombre) LIKE LOWER(?) OR LOWER(telefono) LIKE LOWER(?))
+                    ORDER BY COALESCE(creado_en, fecha_creacion, actualizado_en) DESC
                     LIMIT 10
                 """, (f"%{criterio_busqueda}%", f"%{criterio_busqueda}%"))
                 visitantes = cursor.fetchall()
         except Exception as e:
             st.error(f"Error buscando visitantes: {e}")
+            import traceback
+            st.code(traceback.format_exc())
             visitantes = []
         
         if visitantes:
