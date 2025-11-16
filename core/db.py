@@ -40,18 +40,30 @@ def get_db():
             if st.secrets.get('DB_MODE') == 'postgres':
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
+                import socket
+                
                 print(f"🔍 DEBUG: Intentando conectar a PostgreSQL...")
                 print(f"   Host: {st.secrets.get('PG_HOST', 'N/A')}")
                 print(f"   Database: {st.secrets.get('PG_DATABASE', 'N/A')}")
-                conn = psycopg2.connect(
-                    host=st.secrets['PG_HOST'],
-                    database=st.secrets['PG_DATABASE'],
-                    user=st.secrets['PG_USER'],
-                    password=st.secrets['PG_PASSWORD'],
-                    port=int(st.secrets.get('PG_PORT', 5432))
-                )
-                use_postgres = True
-                print("✅ Conectado a PostgreSQL via Streamlit secrets")
+                
+                # Forzar IPv4 (fix para Streamlit Cloud)
+                original_getaddrinfo = socket.getaddrinfo
+                def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+                    return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+                socket.getaddrinfo = getaddrinfo_ipv4_only
+                
+                try:
+                    conn = psycopg2.connect(
+                        host=st.secrets['PG_HOST'],
+                        database=st.secrets['PG_DATABASE'],
+                        user=st.secrets['PG_USER'],
+                        password=st.secrets['PG_PASSWORD'],
+                        port=int(st.secrets.get('PG_PORT', 5432))
+                    )
+                    use_postgres = True
+                    print("✅ Conectado a PostgreSQL via Streamlit secrets")
+                finally:
+                    socket.getaddrinfo = original_getaddrinfo
     except Exception as e:
         print(f"⚠️  Error en Opción 1: {e}")
         pass
