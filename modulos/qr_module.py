@@ -66,16 +66,20 @@ def _render_generar_qr_visitante():
     
     visitante_seleccionado = None
     
-    if criterio_busqueda:
-        with get_db() as db:
-            cursor = db.execute("""
-                SELECT * FROM entidades 
-                WHERE tipo = 'visitante' 
-                AND (nombre LIKE ? OR telefono LIKE ?)
-                ORDER BY fecha_creacion DESC
-                LIMIT 10
-            """, (f"%{criterio_busqueda}%", f"%{criterio_busqueda}%"))
-            visitantes = cursor.fetchall()
+    if criterio_busqueda and len(criterio_busqueda) >= 3:
+        try:
+            with get_db() as db:
+                cursor = db.execute("""
+                    SELECT * FROM entidades 
+                    WHERE tipo = 'visitante' 
+                    AND (nombre LIKE ? OR telefono LIKE ?)
+                    ORDER BY fecha_creacion DESC
+                    LIMIT 10
+                """, (f"%{criterio_busqueda}%", f"%{criterio_busqueda}%"))
+                visitantes = cursor.fetchall()
+        except Exception as e:
+            st.error(f"Error buscando visitantes: {e}")
+            visitantes = []
         
         if visitantes:
             st.write(f"**{len(visitantes)} visitante(s) encontrado(s):**")
@@ -102,11 +106,16 @@ def _render_generar_qr_visitante():
                 st.write(f"**Teléfono:** {visitante_seleccionado.get('telefono', 'N/A')}")
                 st.write(f"**Tipo:** {visitante_seleccionado['tipo']}")
             with col3:
-                datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+                try:
+                    datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+                except:
+                    datos_extra = {}
                 st.write(f"**Casa destino:** {datos_extra.get('casa_destino', 'N/A')}")
                 st.write(f"**Residente:** {datos_extra.get('residente_autoriza', 'N/A')}")
-        else:
+        elif len(criterio_busqueda) >= 3:
             st.warning("No se encontraron visitantes con ese criterio")
+    elif criterio_busqueda and len(criterio_busqueda) < 3:
+        st.info("Ingrese al menos 3 caracteres para buscar")
     
     if visitante_seleccionado:
         st.divider()
@@ -133,7 +142,10 @@ def _render_generar_qr_visitante():
         st.divider()
         
         if st.button("🔲 Generar Código QR", type="primary"):
-            datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+            try:
+                datos_extra = json.loads(visitante_seleccionado.get('datos_extra', '{}'))
+            except:
+                datos_extra = {}
             
             # Generar código QR
             metadata = {
@@ -168,19 +180,23 @@ def _render_generar_qr_visitante():
                     "expira": expiracion
                 })
                 
-                db.execute("""
-                    INSERT INTO codigos_qr 
-                    (codigo, tipo, datos_json, fecha_creacion, fecha_expiracion, estado, usado)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    codigo_qr,
-                    "visitante",
-                    datos_json,
-                    timestamp,
-                    expiracion,
-                    "activo",
-                    False
-                ))
+                try:
+                    db.execute("""
+                        INSERT INTO codigos_qr 
+                        (codigo, tipo, datos_json, fecha_creacion, fecha_expiracion, estado, usado)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        codigo_qr,
+                        "visitante",
+                        datos_json,
+                        timestamp,
+                        expiracion,
+                        "activo",
+                        False
+                    ))
+                except Exception as e:
+                    st.error(f"Error guardando QR: {e}")
+                    return
             
             st.success(f"✅ Código QR generado: **{codigo_qr}**")
             
@@ -223,7 +239,10 @@ def _render_generar_qr_visitante():
             
             st.balloons()
     else:
-        st.info("👆 Busque un visitante para generar su código QR")
+        if not criterio_busqueda:
+            st.info("👆 Busque un visitante para generar su código QR")
+        elif len(criterio_busqueda) < 3:
+            pass  # Ya se muestra mensaje arriba
 
 
 def _render_generar_qr_proveedor():
