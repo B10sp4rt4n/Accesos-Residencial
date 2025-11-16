@@ -10,6 +10,7 @@ from modulos.entidades_ui import ui_entidades
 from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
+from modulos.qr_module import ui_qr_module
 
 # Auto-inicialización de base de datos
 try:
@@ -57,6 +58,7 @@ opcion = st.sidebar.radio(
         "🏢 Registro de Entidades",
         "📊 Historial de Eventos",
         "📋 Políticas y Reglas",
+        "🔲 Códigos QR",
         "📈 Dashboard AUP-EXO",
         "ℹ️ Acerca del Sistema"
     ]
@@ -79,6 +81,15 @@ elif opcion == "🏢 Registro de Entidades":
 
 elif opcion == "📊 Historial de Eventos":
     ui_eventos()
+
+elif opcion == "📋 Políticas y Reglas":
+    ui_politicas()
+
+elif opcion == "🔲 Códigos QR":
+    ui_qr_module()
+
+elif opcion == "📈 Dashboard AUP-EXO":
+    ui_dashboard()
 
 elif opcion == "📋 Políticas y Reglas":
     ui_politicas()
