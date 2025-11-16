@@ -31,17 +31,25 @@ def get_db():
     use_postgres = False
     conn = None
     
-    # Opción 1: Variable de entorno DB_MODE
-    if DB_MODE == 'postgres':
-        try:
-            from database.pg_connection import get_pg
-            conn = get_pg()
+    # Opción 1: Streamlit Cloud con secrets individuales (PG_HOST, PG_DATABASE, etc.)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and st.secrets.get('DB_MODE') == 'postgres':
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            conn = psycopg2.connect(
+                host=st.secrets['PG_HOST'],
+                database=st.secrets['PG_DATABASE'],
+                user=st.secrets['PG_USER'],
+                password=st.secrets['PG_PASSWORD'],
+                port=int(st.secrets.get('PG_PORT', 5432))
+            )
             use_postgres = True
-        except Exception as e:
-            print(f"⚠️  Error conectando PostgreSQL: {e}")
-            print("📌 Fallback a SQLite...")
+            print("✅ Conectado a PostgreSQL via Streamlit secrets")
+    except:
+        pass
     
-    # Opción 2: Streamlit Cloud (DATABASE_URL en secrets)
+    # Opción 2: Streamlit Cloud con DATABASE_URL
     if not conn:
         try:
             import streamlit as st
@@ -50,13 +58,26 @@ def get_db():
                 from psycopg2.extras import RealDictCursor
                 conn = psycopg2.connect(st.secrets['DATABASE_URL'])
                 use_postgres = True
+                print("✅ Conectado a PostgreSQL via DATABASE_URL")
         except:
             pass
     
-    # Opción 3: Fallback a SQLite
+    # Opción 3: Variable de entorno DB_MODE (desarrollo local)
+    if not conn and DB_MODE == 'postgres':
+        try:
+            from database.pg_connection import get_pg
+            conn = get_pg()
+            use_postgres = True
+            print("✅ Conectado a PostgreSQL via .env local")
+        except Exception as e:
+            print(f"⚠️  Error conectando PostgreSQL: {e}")
+            print("📌 Fallback a SQLite...")
+    
+    # Opción 4: Fallback a SQLite (desarrollo)
     if not conn:
         conn = sqlite3.connect(DB_PATH if Path(DB_PATH).exists() else "axs_v2.db")
         conn.row_factory = sqlite3.Row
+        print("📌 Usando SQLite (desarrollo local)")
     
     try:
         # Wrapper para compatibilidad de queries

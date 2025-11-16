@@ -78,15 +78,69 @@ Panel de control con métricas y análisis:
 streamlit run app.py
 ```
 
-## 🚀 Cómo desplegar en Streamlit Cloud
+## 🚀 Deployment
 
-1. Ir a https://streamlit.io/cloud e iniciar sesión con GitHub.
-2. Crear una nueva app y conectar este repositorio.
-3. Como `Main file` usar:
-   - **Para vigilantes:** `vigilante.py`
-   - **Para administración:** `app.py`
-4. Streamlit Cloud instalará las dependencias desde `requirements.txt` automáticamente.
-5. Opcional: en la sección "Secrets" de tu app en Streamlit Cloud añade variables sensibles (ej.: `SUPABASE_URL`, `SUPABASE_KEY`) si vas a conectar a Supabase.
+### **Opción 1: Streamlit Cloud (Recomendado) + PostgreSQL**
+
+1. **Crear proyecto Supabase** (PostgreSQL gratis):
+   - Ir a [supabase.com](https://supabase.com)
+   - Crear nuevo proyecto
+   - Copiar credenciales de **Settings → Database**
+
+2. **Inicializar schema**:
+   - Ir a **SQL Editor** en Supabase
+   - Copiar y ejecutar `database/schema.sql`
+
+3. **Deploy a Streamlit Cloud**:
+   - Ir a [streamlit.io/cloud](https://streamlit.io/cloud)
+   - Conectar este repositorio
+   - **Branch**: `feature/aup-exo-roadmap`
+   - **Main file**: `index.py`
+   - **Secrets** (App settings → Secrets):
+     ```toml
+     DB_MODE = "postgres"
+     PG_HOST = "db.xxxxxx.supabase.co"
+     PG_DATABASE = "postgres"
+     PG_USER = "postgres"
+     PG_PASSWORD = "tu_password"
+     PG_PORT = "5432"
+     ```
+
+4. **¡Listo!** La app estará en `https://tu-app.streamlit.app`
+
+📖 **Guía completa**: [docs/DEPLOYMENT_STREAMLIT_CLOUD.md](docs/DEPLOYMENT_STREAMLIT_CLOUD.md)
+
+### **Opción 2: Local (Desarrollo)**
+
+```bash
+# 1. Clonar repositorio
+git clone https://github.com/B10sp4rt4n/Accesos-Residencial.git
+cd Accesos-Residencial
+
+# 2. Instalar dependencias
+pip install -r requirements.txt
+
+# 3. Configurar .env (opcional, usa SQLite por defecto)
+cp .env.example .env
+
+# 4. Ejecutar
+streamlit run index.py
+```
+
+### **Opción 3: Docker**
+
+```bash
+docker build -t ax-s .
+docker run -p 8501:8501 \
+  -e DB_MODE=postgres \
+  -e PG_HOST=db.xxx.supabase.co \
+  -e PG_DATABASE=postgres \
+  -e PG_USER=postgres \
+  -e PG_PASSWORD=tu_password \
+  ax-s
+```
+
+---
 
 ## 💰 Presupuesto Inicial (Solo Tablet)
 
