@@ -137,11 +137,12 @@ def get_db():
             
             # Asignar wrapper al connection object
             conn.execute = execute_compat
-            
-            yield conn
-        else:
-            yield conn
-            conn.commit()
+        
+        yield conn
+        
+        # IMPORTANTE: Commit para ambos tipos de BD
+        conn.commit()
+        
     except Exception as e:
         if hasattr(conn, 'rollback'):
             conn.rollback()
