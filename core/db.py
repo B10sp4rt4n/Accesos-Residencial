@@ -34,19 +34,26 @@ def get_db():
     # Opción 1: Streamlit Cloud con secrets individuales (PG_HOST, PG_DATABASE, etc.)
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and st.secrets.get('DB_MODE') == 'postgres':
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-            conn = psycopg2.connect(
-                host=st.secrets['PG_HOST'],
-                database=st.secrets['PG_DATABASE'],
-                user=st.secrets['PG_USER'],
-                password=st.secrets['PG_PASSWORD'],
-                port=int(st.secrets.get('PG_PORT', 5432))
-            )
-            use_postgres = True
-            print("✅ Conectado a PostgreSQL via Streamlit secrets")
-    except:
+        print(f"🔍 DEBUG: Streamlit detectado, hasattr secrets: {hasattr(st, 'secrets')}")
+        if hasattr(st, 'secrets'):
+            print(f"🔍 DEBUG: Secrets disponibles: {list(st.secrets.keys())}")
+            if st.secrets.get('DB_MODE') == 'postgres':
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                print(f"🔍 DEBUG: Intentando conectar a PostgreSQL...")
+                print(f"   Host: {st.secrets.get('PG_HOST', 'N/A')}")
+                print(f"   Database: {st.secrets.get('PG_DATABASE', 'N/A')}")
+                conn = psycopg2.connect(
+                    host=st.secrets['PG_HOST'],
+                    database=st.secrets['PG_DATABASE'],
+                    user=st.secrets['PG_USER'],
+                    password=st.secrets['PG_PASSWORD'],
+                    port=int(st.secrets.get('PG_PORT', 5432))
+                )
+                use_postgres = True
+                print("✅ Conectado a PostgreSQL via Streamlit secrets")
+    except Exception as e:
+        print(f"⚠️  Error en Opción 1: {e}")
         pass
     
     # Opción 2: Streamlit Cloud con DATABASE_URL
