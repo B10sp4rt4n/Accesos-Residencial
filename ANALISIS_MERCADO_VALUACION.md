@@ -6,14 +6,14 @@ s# 📊 AX-S - Análisis de Mercado y Valuación
 
 ## 🎯 **Resumen Ejecutivo**
 
-**AX-S** es una plataforma SaaS multi-tenant para gestión de accesos residenciales con arquitectura **AUP-EXO**, posicionada para dominar el mercado mexicano mediante partnership estratégico con **Telcel/AT&T**.
+**AX-S** es una plataforma SaaS multi-tenant para gestión de accesos residenciales con arquitectura **AUP-EXO**, posicionada para dominar el mercado mexicano mediante partnership estratégico con **Telcel o AT&T**.
 
 ### **Métricas Clave (Proyección 3 años)**
 - **Condominios objetivo**: 2,800 (56% market share)
 - **ARR Año 3**: $5.4M USD
 - **Valuación Año 3**: $80M-$120M USD
 - **EBITDA Margin**: 66%
-- **Probabilidad de éxito**: 85-90% (con carrier)
+- **Probabilidad de éxito**: 85-90% (con Telcel) | 75-80% (con AT&T)
 
 ---
 
@@ -561,6 +561,224 @@ Valor acumulado 10 años:
 ├─ Valuación empresa: $500M-$800M USD
 └─ Total: $650M-$1,050M USD
 ```
+
+---
+
+## 🤝 **ANÁLISIS RÁPIDO: Telcel vs. AT&T como Partner**
+
+### **📊 Comparación Head-to-Head**
+
+| Factor | Telcel (América Móvil) | AT&T México | Ganador |
+|--------|:-----------------------:|:-----------:|:-------:|
+| **Market Share Móvil** | 68% (68M usuarios) | 18% (18M usuarios) | 🥇 Telcel |
+| **Puntos de Venta** | 8,000+ propios | 3,500+ franquicias | 🥇 Telcel |
+| **Infraestructura IoT** | ⭐⭐⭐⭐⭐ Líder M2M | ⭐⭐⭐⭐ Excelente | 🥇 Telcel |
+| **Penetración Condominios** | 75% residentes son clientes | 20% residentes son clientes | 🥇 Telcel |
+| **Credibilidad Marca** | 98% awareness México | 82% awareness México | 🥇 Telcel |
+| **Capital Disponible** | $8B USD líquido (AM) | $2B USD LATAM | 🥇 Telcel |
+| **Agilidad Comercial** | 🐢 Lenta (corporativo grande) | 🐇 Rápida (challenger) | 🥇 AT&T |
+| **Appetite Innovación** | 🟡 Conservador | 🟢 Agresivo | 🥇 AT&T |
+| **Channel Conflict** | ⚠️ Ya vende algunas soluciones IoT | ✅ No tiene portfolio accesos | 🥇 AT&T |
+| **Deal Closing Speed** | ⏰ 9-12 meses | ⏰ 4-6 meses | 🥇 AT&T |
+| **Equity Ask Probable** | 35-40% | 25-30% | 🥇 AT&T |
+| **Revenue Share Ask** | 30-35% | 20-25% | 🥇 AT&T |
+
+---
+
+### **🎯 Escenarios por Partner**
+
+#### **Opción A: Partnership con Telcel**
+
+**✅ Ventajas:**
+- 🥇 **Distribución masiva**: 8,000 puntos + 68M clientes base
+- 🥇 **Moat defensivo**: Telcel es prácticamente monopolio
+- 🥇 **Cross-sell perfecto**: 75% de residentes ya son clientes
+- 🥇 **Infraestructura M2M**: Conectividad incluida en bundle
+- 🥇 **Credibilidad instantánea**: "Respaldado por Telcel" = trust
+- 🥇 **Capital robusto**: Acceso a $8B USD de América Móvil
+
+**❌ Desventajas:**
+- 🐢 **Velocidad glacial**: 9-12 meses cerrar deal + burocracia masiva
+- 💸 **Equity ask alto**: Pedirán 35-40% (vs. 25-30% AT&T)
+- 🤝 **Revenue share alto**: 30-35% de ARR perpetuo
+- ⚠️ **Channel conflict**: Ya tienen IoT solutions (competencia interna)
+- 🎭 **Prioridad baja**: AX-S sería <0.01% de su revenue (riesgo abandono)
+- 🔒 **Lock-in duro**: Salir del acuerdo = perder distribución completa
+
+**📊 Proyección con Telcel:**
+```
+Probabilidad cierre deal: 70%
+Time to close: 9-12 meses
+Equity dilución: 35-40%
+Revenue share: 30-35%
+Condominios año 3: 2,800 (alcance masivo)
+Probabilidad éxito post-deal: 90%
+Valuación año 3: $100M-$140M USD
+Founders liquidity (50% → 30%): $30M-$42M
+```
+
+---
+
+#### **Opción B: Partnership con AT&T México**
+
+**✅ Ventajas:**
+- 🚀 **Velocidad ejecución**: 4-6 meses cerrar + menos burocracia
+- 💪 **Appetite innovación**: Buscan agresivamente IoT/Smart Home
+- 🤝 **Términos mejores**: 25-30% equity + 20-25% revenue share
+- ✅ **No channel conflict**: AT&T no tiene solución accesos (greenfield)
+- 🎯 **Prioridad alta**: AX-S sería showcase innovation para ellos
+- 🔓 **Flexibilidad**: Más abiertos a co-branding y white label
+- 🌎 **Expansión LATAM**: AT&T tiene presencia 12 países (vs. Telcel solo MX)
+
+**❌ Desventajas:**
+- 📉 **Menor alcance**: 3,500 puntos vs. 8,000 Telcel
+- 📊 **Market share bajo**: 18% móvil vs. 68% Telcel
+- 💰 **Menos capital**: $2B LATAM vs. $8B Telcel
+- ⚠️ **Menor penetración condos**: Solo 20% residentes vs. 75% Telcel
+- 🔴 **Credibilidad menor**: "AT&T" no resuena igual que "Telcel" en MX
+- 🎲 **Riesgo foco**: AT&T puede pivotar estrategia (menos stable)
+
+**📊 Proyección con AT&T:**
+```
+Probabilidad cierre deal: 80%
+Time to close: 4-6 meses
+Equity dilución: 25-30%
+Revenue share: 20-25%
+Condominios año 3: 1,800-2,200 (menor alcance)
+Probabilidad éxito post-deal: 80%
+Valuación año 3: $60M-$90M USD
+Founders liquidity (50% → 35%): $21M-$31.5M
+```
+
+---
+
+### **🧮 Análisis Cuantitativo**
+
+#### **Expected Value Comparison**
+
+```
+TELCEL:
+├─ P(cerrar deal): 70%
+├─ P(éxito | deal cerrado): 90%
+├─ P(éxito total): 70% × 90% = 63%
+├─ Valuación exit: $120M USD
+├─ Founders ownership: 30% (post-dilución)
+└─ EV Founders: 63% × $120M × 30% = $22.7M USD
+
+AT&T:
+├─ P(cerrar deal): 80%
+├─ P(éxito | deal cerrado): 80%
+├─ P(éxito total): 80% × 80% = 64%
+├─ Valuación exit: $75M USD
+├─ Founders ownership: 35% (post-dilución)
+└─ EV Founders: 64% × $75M × 35% = $16.8M USD
+
+DELTA: Telcel +$5.9M USD (+35%) 🥇
+```
+
+#### **Time-Adjusted Value (considerando time to close)**
+
+```
+TELCEL:
+├─ EV: $22.7M USD
+├─ Time to close: 10 meses promedio
+├─ Discounted @ 15% anual: $22.7M / 1.15^0.83 = $20.1M USD
+
+AT&T:
+├─ EV: $16.8M USD
+├─ Time to close: 5 meses promedio
+├─ Discounted @ 15% anual: $16.8M / 1.15^0.42 = $15.9M USD
+
+DELTA: Telcel +$4.2M USD (+26%) 🥇
+```
+
+---
+
+### **🎯 Recomendación Estratégica**
+
+#### **Plan Óptimo: DUAL-TRACK APPROACH**
+
+```
+Mes 1-3: Acercamiento paralelo
+├─ Track A: Pitch Telcel (Corporate Innovation / IoT Division)
+├─ Track B: Pitch AT&T (Smart Cities / Enterprise Solutions)
+└─ Objetivo: Crear FOMO (fear of missing out) entre carriers
+
+Mes 4-6: Negociación competitiva
+├─ Usar offer AT&T como leverage con Telcel
+├─ Usar tamaño Telcel como leverage con AT&T
+└─ Goal: Mejorar términos de ambos
+
+Decision Gate (Mes 6):
+├─ SI Telcel ofrece ≤30% equity + ≤25% revenue share → Telcel ✅
+├─ SI Telcel pide >35% equity o >9 meses → AT&T ✅
+└─ SI ambos tibios → Raise $1M USD + go solo 2 años
+```
+
+#### **Criterios de Decisión (Decision Matrix)**
+
+| Factor | Weight | Telcel Score | AT&T Score | Winner |
+|--------|:------:|:------------:|:----------:|:------:|
+| Probabilidad cierre | 25% | 7/10 | 8/10 | AT&T |
+| Distribución/Alcance | 30% | 10/10 | 6/10 | Telcel |
+| Términos económicos | 20% | 5/10 | 8/10 | AT&T |
+| Velocidad ejecución | 15% | 4/10 | 9/10 | AT&T |
+| Capital disponible | 10% | 9/10 | 6/10 | Telcel |
+| **TOTAL WEIGHTED** | 100% | **7.1/10** | **7.2/10** | **🟰 EMPATE** |
+
+**Conclusión:** Diferencia marginal (1%) → **La decisión NO es obvia**.
+
+---
+
+### **🚦 Señales para Elegir Uno u Otro**
+
+#### **Elige TELCEL si:**
+1. ✅ Ofrecen ≤30% equity + ≤25% revenue share
+2. ✅ Commitment C-level directo (no solo middle management)
+3. ✅ Cierran en ≤6 meses (aceleran proceso)
+4. ✅ Bundle conectividad M2M gratis incluido
+5. ✅ Founders OK cediendo velocidad por alcance masivo
+
+#### **Elige AT&T si:**
+1. ✅ Telcel tarda >9 meses o pide >35% equity
+2. ✅ AT&T ofrece exclusivity LATAM (12 países)
+3. ✅ Founders valoran velocidad > alcance
+4. ✅ AT&T hace showcase internacional (CES, MWC)
+5. ✅ Terms: ≤28% equity + ≤22% revenue share
+
+#### **Go SOLO (sin carrier) si:**
+1. ❌ Ambos piden >35% equity
+2. ❌ Revenue share >30% perpetuo
+3. ❌ Timelines >12 meses
+4. ❌ No hay executive sponsorship real
+5. ❌ Founders pueden raise $1M-$1.5M USD independiente
+
+---
+
+### **💡 Insight Crítico**
+
+**El carrier NO es requisito de éxito, es un ACELERADOR.**
+
+```
+Sin Carrier (Fundraising tradicional):
+├─ Probabilidad éxito: 55-60%
+├─ Time to 1,000 condos: 4-5 años
+├─ Capital needed: $8M-$12M USD
+├─ Valuación año 5: $40M-$60M USD
+└─ Founders exit: $20M-$30M USD (50%)
+
+Con Carrier (Telcel o AT&T):
+├─ Probabilidad éxito: 75-85%
+├─ Time to 1,000 condos: 18-24 meses
+├─ Capital needed: $3M-$5M USD
+├─ Valuación año 3: $60M-$120M USD
+└─ Founders exit: $18M-$36M USD (30-35%)
+
+TRADE-OFF:
+Mayor dilución (50% → 30%) vs. Mayor probabilidad + velocidad
+```
+
+**Bottom Line:** Carrier partnership vale la pena SI términos ≤30% equity + ejecución <9 meses. De lo contrario, mejor raise tradicional y construir canal propio.
 
 ---
 
