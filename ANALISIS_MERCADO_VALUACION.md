@@ -1,4 +1,4 @@
-# 📊 AX-S - Análisis de Mercado y Valuación
+s# 📊 AX-S - Análisis de Mercado y Valuación
 
 ## Documento Estratégico - Noviembre 2025
 
@@ -644,7 +644,319 @@ Decisión: Exit vs. Growth
 
 ---
 
-## 💡 **Riesgos y Mitigaciones**
+## 🚨 **DEAL-BREAKERS: Factores Críticos de Fracaso**
+
+### **Estas son las amenazas que pueden MATAR el proyecto por completo**
+
+---
+
+### **💀 DEAL-BREAKER #1: Telcel No Cierra o Abandona**
+
+```
+Escenario Catastrófico:
+├─ LOI firmado pero contrato nunca se concreta
+├─ O peor: Telcel cierra pero no ejecuta (vending pasivo)
+├─ O peor aún: Telcel se retira año 1-2
+
+Impacto:
+├─ Pérdida de distribución → targets inalcanzables
+├─ Pérdida de credibilidad → inversión difícil
+├─ CAC se dispara 3-5x sin subsidio carrier
+├─ Burn rate insostenible
+└─ PROBABILIDAD ÉXITO: 60% → 25% ❌
+
+¿Qué haría el proyecto FATAL?
+└─ Si Telcel es el ÚNICO plan de go-to-market
+
+Mitigación CRÍTICA:
+├─ ✅ Plan B: AT&T como backup (negociar en paralelo)
+├─ ✅ Plan C: Modelo MSP directo (más lento pero viable)
+├─ ✅ Contrato Telcel con KPIs mínimos obligatorios
+├─ ✅ Cláusula salida si Telcel no vende X/trimestre
+└─ ✅ No ceder >35% equity sin garantías de ejecución
+
+REGLA DE ORO: Nunca casarse con un solo carrier
+```
+
+---
+
+### **💀 DEAL-BREAKER #2: Producto No Funciona en Campo**
+
+```
+Escenario Catastrófico:
+├─ Pilotos funcionan en lab, fallan en producción
+├─ Bugs críticos en go-live (QR no funciona, DB cae)
+├─ No escala: 10 condominios OK, 100 colapsa
+├─ UX horrible: guardias de 60+ años no pueden usarlo
+
+Impacto:
+├─ Churn 50%+ en primeros 3 meses
+├─ NPS negativo → boca a boca tóxico
+├─ Telcel cancela partnership (reputación)
+├─ Imposible raise siguiente ronda
+└─ GAME OVER en 6-9 meses ❌
+
+Señales de Alerta Temprana:
+├─ 🚩 Pilotos requieren >5 horas soporte/semana
+├─ 🚩 NPS <40 después de mes 1
+├─ 🚩 Más de 2 incidentes críticos/mes
+├─ 🚩 Guardias piden volver a Excel
+└─ 🚩 Downtime >1% mensual
+
+Mitigación CRÍTICA:
+├─ ✅ 3 pilotos REALES (no amigos) antes de scale
+├─ ✅ Beta testing mínimo 3 meses
+├─ ✅ Stress testing con 500+ condominios simulados
+├─ ✅ UX testing con usuarios reales 60+ años
+├─ ✅ SLA 99.5% uptime desde día 1
+├─ ✅ Rollback plan si algo falla
+└─ ✅ No escalar hasta NPS >60 consistente
+
+REGLA DE ORO: Mejor lento y seguro que rápido y muerto
+```
+
+---
+
+### **💀 DEAL-BREAKER #3: Team Fundador Explota**
+
+```
+Escenario Catastrófico:
+├─ Cofounders pelean y se separan (50% startups)
+├─ CTO se va llevándose el código/conocimiento
+├─ Burnout fundadores después de 2 años sin exit
+├─ Desacuerdos equity/strategic decisions
+
+Impacto:
+├─ Parálisis operativa total
+├─ Inversionistas huyen
+├─ Telcel cancela (no confía en nuevo team)
+├─ IP en riesgo si CTO sale mal
+└─ MUERTE SÚBITA del proyecto ❌
+
+Factores de Riesgo:
+├─ 🚩 Equity mal definido desde inicio
+├─ 🚩 Sin vesting (todos 100% día 1)
+├─ 🚩 Roles ambiguos (quién decide qué)
+├─ 🚩 Sin board o advisors externos
+├─ 🚩 Cultura de héroes (1 persona crítica)
+└─ 🚩 Falta de documentation/knowledge sharing
+
+Mitigación CRÍTICA:
+├─ ✅ Founders agreement ANTES de levantar $
+├─ ✅ Vesting 4 años con cliff 1 año para TODOS
+├─ ✅ Roles y responsabilidades por escrito
+├─ ✅ Deadlock resolution (advisor o inversionista)
+├─ ✅ Bus factor >1 en áreas críticas (tech, sales)
+├─ ✅ Documentación exhaustiva desde día 1
+├─ ✅ Culture code explícito (valores, decisiones)
+└─ ✅ Terapia de equipo si es necesario (en serio)
+
+REGLA DE ORO: Matrimonio fundadores > matrimonio real
+```
+
+---
+
+### **💀 DEAL-BREAKER #4: Competencia Copia y Ejecuta Mejor**
+
+```
+Escenario Catastrófico:
+├─ ASSA ABLOY ve tracción AX-S y lanza "Visionline Lite"
+├─ Precio agresivo: $50k → $20k (pueden subsidiar)
+├─ Marca global + recursos ilimitados
+├─ Roban MSPs y talento clave
+
+Impacto:
+├─ War chest insuficiente para pelea
+├─ Market share se estanca en 10-15%
+├─ Imposible levantar Series B (no unicorn path)
+├─ Valuación se colapsa
+└─ Exit mediocre o quiebra lenta ❌
+
+Cuándo es más vulnerable AX-S:
+├─ 🚩 Año 1-2 (sin moat, fácil de copiar)
+├─ 🚩 Si crece muy rápido y hace ruido
+├─ 🚩 Antes de tener network effects fuertes
+└─ 🚩 Si el producto es fácil de replicar
+
+Mitigación CRÍTICA:
+├─ ✅ Velocidad brutal: 2,000 condominios año 2
+├─ ✅ Network effects: MSPs locked-in en plataforma
+├─ ✅ Contratos exclusividad 3-5 años con MSPs
+├─ ✅ IP core bien protegido (patents si es posible)
+├─ ✅ Integración profunda Telcel (difícil replicar)
+├─ ✅ First-mover advantage en data (propietario)
+├─ ✅ M&A ofensivo: comprar competidores locales
+└─ ✅ Plan: Si no puedes ganarles, que te compren
+
+REGLA DE ORO: En tech, el segundo lugar es el primer perdedor
+```
+
+---
+
+### **💀 DEAL-BREAKER #5: Capital se Acaba Sin Product-Market Fit**
+
+```
+Escenario Catastrófico:
+├─ Raise $2M USD con 18 meses runway
+├─ Burn $150k/mes en team + infraestructura
+├─ Mes 12: Solo 50 condominios (target 300)
+├─ Mes 15: Runway 3 meses, need bridge
+├─ Inversionistas dicen NO (no hay tracción)
+├─ Telcel no inyecta más (terms iniciales)
+└─ Down round o muerte
+
+Impacto:
+├─ Despidos 70% del team
+├─ Producto se degrada (no hay devs)
+├─ Churn se dispara (no hay soporte)
+├─ Death spiral inevitable
+└─ LIQUIDACIÓN o fire sale ❌
+
+Señales de Muerte Inminente:
+├─ 🚩 CAC >$25k MXN y subiendo
+├─ 🚩 Churn >15% anual
+├─ 🚩 LTV/CAC <3x (necesitas 8x+)
+├─ 🚩 Burn rate >$120k USD/mes sin revenue
+├─ 🚩 Unit economics no mejoran con escala
+└─ 🚩 Runway <6 meses sin line of sight a profitable
+
+Mitigación CRÍTICA:
+├─ ✅ Raise 24+ meses runway (no 12-18)
+├─ ✅ Milestones claros para next raise (objetivos)
+├─ ✅ Burn <$80k USD/mes hasta PMF probado
+├─ ✅ Bridge facility pre-negociada con inversionistas
+├─ ✅ Plan de austeridad si targets fallan
+├─ ✅ Pivot option si modelo no funciona
+└─ ✅ No escalar team sin revenue validado
+
+REGLA DE ORO: Cash is oxygen, sin él mueres en minutos
+```
+
+---
+
+### **💀 DEAL-BREAKER #6: Regulatorio/Legal Catastrófico**
+
+```
+Escenario Catastrófico:
+├─ Hackeo masivo: datos de 10,000 residentes leaked
+├─ Gobierno: "AX-S violó INAI, multa $50M MXN"
+├─ Demanda colectiva por privacidad
+├─ Prohibición operar sin licencias especiales
+└─ Telcel cancela por riesgo reputacional
+
+Impacto:
+├─ Costo legal/multas destruye caja
+├─ Pérdida de confianza irreparable
+├─ Imposible vender a nuevos clientes
+├─ Inversionistas exigen liquidación
+└─ FIN DEL JUEGO ❌
+
+Áreas de Alto Riesgo México:
+├─ 🚩 Ley Federal de Protección de Datos (INAI)
+├─ 🚩 Videovigilancia (permisos especiales)
+├─ 🚩 Biometría (reconocimiento facial)
+├─ 🚩 Geolocalización de personas
+├─ 🚩 Datos de menores (condominios con niños)
+└─ 🚩 Responsabilidad por incidentes (robo, violencia)
+
+Mitigación CRÍTICA:
+├─ ✅ Legal counsel especializado ANTES de lanzar
+├─ ✅ Compliance officer desde día 1
+├─ ✅ Auditoría seguridad trimestral (externo)
+├─ ✅ Seguro cyber liability $5M-$10M USD
+├─ ✅ Políticas de privacidad iron-clad
+├─ ✅ Data residency México (no US clouds)
+├─ ✅ Avisos de privacidad claros y firmados
+├─ ✅ Encryption at rest y in transit
+├─ ✅ Incident response plan testeado
+└─ ✅ Terms of service revisados cada 6 meses
+
+REGLA DE ORO: Un lawsuit puede matar 10 años de trabajo
+```
+
+---
+
+### **💀 DEAL-BREAKER #7: Founders Pierden Motivación**
+
+```
+Escenario Catastrófico:
+├─ Año 2: Crecimiento lento (no rocket ship)
+├─ Founders agotados: 80 hrs/semana x 24 meses
+├─ Oferta laboral: $250k USD/año Google
+├─ O peor: "Para qué tanto esfuerzo por 15%?"
+├─ Phoning it in → team lo nota → cultura colapsa
+
+Impacto:
+├─ Decisiones mediocres
+├─ Hiring de segunda
+├─ Producto se estanca
+├─ Competencia pasa
+└─ Espiral lenta a la mediocridad ❌
+
+Causas Principales Burnout:
+├─ 🚩 Expectativas irreales (unicornio o bust)
+├─ 🚩 Sacrificios personales extremos (salud, familia)
+├─ 🚩 Equity muy diluida (trabajar por otros)
+├─ 🚩 Falta de quick wins / momentum
+├─ 🚩 Entorno tóxico (peleas, blame)
+└─ 🚩 No hay luz al final del túnel (exit lejano)
+
+Mitigación CRÍTICA:
+├─ ✅ Expectativas realistas desde día 1
+├─ ✅ Salarios dignos (no solo equity)
+├─ ✅ Work-life balance explícito
+├─ ✅ Celebrate small wins constantemente
+├─ ✅ Sabbaticals si es necesario
+├─ ✅ Terapia/coaching ejecutivo
+├─ ✅ Exit parcial en Series B (vender 10-20%)
+├─ ✅ Definir "éxito" más allá de $100M
+└─ ✅ Remember WHY empezaste
+
+REGLA DE ORO: Startup muerta si founder está muerto por dentro
+```
+
+---
+
+### **💀 DEAL-BREAKER #8: Macro Económico / Cisne Negro**
+
+```
+Escenario Catastrófico:
+├─ Crisis económica México 2027 (peso $25/USD)
+├─ Condominios recortan gastos → cancelan SaaS
+├─ Telcel congela inversiones
+├─ Inversionistas no hacen follow-on
+└─ Freeze completo de capital VC
+
+Impacto:
+├─ Churn se dispara a 30-40%
+├─ New sales caen 70%
+├─ Imposible raise
+├─ Forced to bootstrap con FCF negativo
+└─ Runway colapsa ❌
+
+Eventos Cisne Negro Posibles:
+├─ 🚩 Recesión global 2026-2027
+├─ 🚩 Crisis política México
+├─ 🚩 Pandemia 2.0
+├─ 🚩 Ciberataque masivo infraestructura
+├─ 🚩 Cambio regulatorio súbito
+└─ 🚩 Quiebra Telcel/AT&T (unlikely pero posible)
+
+Mitigación CRÍTICA:
+├─ ✅ Profitability año 3 (independencia capital)
+├─ ✅ Cash reserves 12+ meses siempre
+├─ ✅ Contracts anuales (vs. mensuales)
+├─ ✅ Diversificación geografía (no solo México)
+├─ ✅ Producto necesario (vs. nice-to-have)
+├─ ✅ Pricing defensivo (no premium)
+└─ ✅ Escenario planning para crisis
+
+REGLA DE ORO: Hope for the best, plan for the worst
+```
+
+---
+
+## 💡 **Riesgos y Mitigaciones (Nivel Medio)**
 
 ### **Riesgo 1: Dependencia de Telcel**
 ```
@@ -918,29 +1230,194 @@ Año 5 con LATAM:
 - 💰 Valuación año 3: **$80M-$120M USD**
 - 🚀 Exit potential: **$150M-$250M USD** (año 4-5)
 
-### **Recomendación Final**
+### **⚠️ PERO... Probabilidad Ajustada por Deal-Breakers**
 
-**Perseguir agresivamente partnership con Telcel/AT&T como estrategia #1.**
+```
+Probabilidad Base con Telcel: 85-90%
 
-El delta en probabilidad de éxito (+27%) y valuación (3-4x) justifica ceder equity (hasta 35%) al carrier correcto.
+Ajuste por Deal-Breakers:
+├─ Telcel no ejecuta / cancela: -30% (prob 20%)
+├─ Producto falla en campo: -40% (prob 15%)  
+├─ Team fundador explota: -70% (prob 10%)
+├─ Competencia copia + ejecuta: -25% (prob 25%)
+├─ Capital se acaba sin PMF: -60% (prob 12%)
+├─ Legal/Regulatorio catastrófico: -80% (prob 5%)
+├─ Founders burnout: -50% (prob 15%)
+└─ Macro/Cisne Negro: -40% (prob 8%)
 
-La arquitectura AUP-EXO multi-tenant implementada es la base técnica necesaria para escalar a miles de condominios. El producto está listo. Ahora es ejecución comercial + capital + distribution.
+Probabilidad Real de Éxito:
+= 90% × (1 - 0.20×0.30) × (1 - 0.15×0.40) × ... 
+
+= 90% × 0.94 × 0.94 × 0.93 × 0.94 × 0.93 × 0.96 × 0.93 × 0.97
+
+= 90% × 0.72
+
+= 65% PROBABILIDAD REAL ✅
+
+TRADUCCIÓN:
+├─ Con Telcel + mitigaciones: 65% éxito
+├─ Sin mitigaciones: 40% éxito  
+└─ Sin Telcel ni mitigaciones: 25% éxito
+```
+
+### **📊 Matriz de Probabilidades de Resultado**
+
+| Escenario | Probabilidad | Valuación Exit | ROI Fundadores (50%) |
+|-----------|:------------:|---------------:|---------------------:|
+| **🚀 Unicornio Path** | 5% | $500M-$1B USD | $250M-$500M |
+| **✅ Éxito Grande** | 25% | $150M-$300M USD | $75M-$150M |
+| **🟢 Éxito Moderado** | 35% | $50M-$150M USD | $25M-$75M |
+| **🟡 Exit Tibio** | 20% | $15M-$50M USD | $7.5M-$25M |
+| **🔴 Fracaso** | 15% | $0-$5M USD | $0-$2.5M |
+
+**Valor Esperado (Expected Value):**
+```
+EV = (0.05 × $375M) + (0.25 × $112M) + (0.35 × $50M) + (0.20 × $16M) + (0.15 × $1M)
+   = $18.75M + $28M + $17.5M + $3.2M + $0.15M
+   = $67.6M USD
+
+Fundadores (50%): $33.8M USD valor esperado
+```
+
+**TRADUCCIÓN:** Si haces esto 100 veces, en promedio ganas $34M USD como founder.
+
+---
+
+### **🎯 Recomendación Final Actualizada**
+
+**Perseguir agresivamente partnership con Telcel/AT&T como estrategia #1, PERO con protecciones.**
+
+#### **Deal Structure Óptimo:**
+
+```
+✅ Equity Telcel: 25-30% (NO 35-40%)
+✅ Vesting Telcel: 4 años con performance milestones
+✅ Salida si Telcel no vende >100 condominios año 1
+✅ Founders mantienen >50% control
+✅ Pre-negociar Plan B con AT&T en paralelo
+✅ Raise $1M-$1.5M USD ANTES de cerrar Telcel (leverage)
+✅ Contratos pilotos testeados ANTES de escalar
+✅ Legal/compliance ANTES de lanzar comercial
+```
+
+#### **Gates de Decisión (Kill or Continue):**
+
+```
+Gate 1 - Mes 3: Piloto #1
+├─ Criterio: NPS >50, Churn <15%
+├─ SI PASA: Continuar a Piloto #2-3
+└─ SI FALLA: Pivot o shut down (costo $100k)
+
+Gate 2 - Mes 6: 3 Pilotos completados
+├─ Criterio: NPS >60, Churn <10%, LTV/CAC >5x
+├─ SI PASA: Cerrar Telcel + raise Pre-seed
+└─ SI FALLA: Repensar modelo o shut down (costo $300k)
+
+Gate 3 - Mes 12: Primeros 100 condominios
+├─ Criterio: CAC <$15k, Churn <8%, NPS >65
+├─ SI PASA: Scale agresivo + Series A
+└─ SI FALLA: Restructure o acquihire (costo $1M)
+
+Gate 4 - Mes 24: 1,000 condominios
+├─ Criterio: EBITDA positivo, Churn <6%
+├─ SI PASA: Dominate market + Series B
+└─ SI FALLA: Exit estratégico o downsize
+```
+
+#### **Filosofía de Ejecución:**
+
+1. **Paranoia Productiva**: Assume everything will go wrong
+2. **Velocidad con Seguridad**: Fast pero no reckless
+3. **Data-Driven Kill Switches**: Números mandan, no ego
+4. **Múltiples Opciones**: Nunca 1 solo plan
+5. **Capital Efficiency**: Gastar como si fuera el último peso
+
+---
+
+### **💰 Expectativa Realista para Fundadores**
+
+```
+Escenario Conservador (Probabilidad 60%):
+├─ Exit año 4-5: $50M-$80M USD
+├─ Founders (50%): $25M-$40M USD
+├─ Después de taxes: $17M-$28M USD
+└─ Por founder (si son 2): $8.5M-$14M USD cada uno
+
+Escenario Base (Probabilidad 25%):
+├─ Exit año 4-5: $150M-$200M USD  
+├─ Founders (50%): $75M-$100M USD
+├─ Después de taxes: $52M-$70M USD
+└─ Por founder: $26M-$35M USD cada uno
+
+Escenario Optimista (Probabilidad 5%):
+├─ IPO año 6-7: $500M USD
+├─ Founders (35% post-dilución): $175M USD
+├─ Después de taxes: $122M USD
+└─ Por founder: $61M USD cada uno
+```
+
+**BOTTOM LINE:** Probabilidad alta de crear riqueza generacional ($10M-$30M USD por founder), pero NO es garantía. Requiere ejecución implacable y suerte moderada.
+
+---
+
+### **🚨 Red Flags para Abandonar el Proyecto**
+
+**Si ves 3+ de estos en primeros 12 meses, considera salir:**
+
+1. ❌ Telcel commitment tibio (no vende nada en 6 meses)
+2. ❌ Pilotos NPS <50 después de 3 meses
+3. ❌ CAC >$30k MXN y subiendo
+4. ❌ Churn >20% anual sostenido
+5. ❌ LTV/CAC <3x después de 100 clientes
+6. ❌ Cofounders peleando por equity/strategy
+7. ❌ Runway <6 meses sin line of sight a funding
+8. ❌ Competencia copia y ejecuta mejor
+9. ❌ Incidente legal/seguridad grave
+10. ❌ Burn rate >$150k USD/mes sin revenue
+
+**No hay vergüenza en saber cuándo fold. Mejor perder $500k que $5M.**
+
+---
+
+### **✅ Señales de Éxito (Double Down)**
+
+**Si ves 5+ de estos, acelera todo:**
+
+1. ✅ Telcel vendiendo >20 condominios/mes orgánicamente
+2. ✅ NPS >70 consistente
+3. ✅ Churn <5% anual
+4. ✅ CAC bajando con escala (<$10k MXN)
+5. ✅ LTV/CAC >15x
+6. ✅ Inbound leads >50% del pipeline
+7. ✅ Competidores preguntando por M&A
+8. ✅ VCs tocando la puerta (no al revés)
+9. ✅ Team feliz (eNPS >40)
+10. ✅ EBITDA positivo antes de año 3
+
+**Cuando esto pasa: Raise agresivo, hire rápido, domina el mercado.**
+
+---
+
+La arquitectura AUP-EXO multi-tenant implementada es la base técnica necesaria para escalar a miles de condominios. El producto está listo. Ahora es ejecución comercial + capital + distribution + **evitar deal-breakers**.
 
 **Timeline sugerido:**
 - ✅ **Hoy**: Arquitectura completa (DONE)
-- 📅 **Dic 2025**: Cerrar LOI Telcel
-- 📅 **Q1 2026**: 3 pilotos exitosos
-- 📅 **Q2 2026**: Contrato definitivo Telcel + Pre-seed $500k
-- 📅 **Q3 2026**: Lanzamiento comercial 100 condominios
-- 📅 **Q4 2026**: Series A $5M-$8M USD
-- 📅 **2027**: Escalamiento 1,200 condominios
+- 📅 **Dic 2025**: Cerrar LOI Telcel + Legal/Compliance setup
+- 📅 **Q1 2026**: 3 pilotos exitosos (Gate 1-2)
+- 📅 **Q2 2026**: Contrato definitivo Telcel + Pre-seed $500k-$800k
+- 📅 **Q3 2026**: Lanzamiento comercial 100 condominios (Gate 3)
+- 📅 **Q4 2026**: Series A $5M-$8M USD si métricas OK
+- 📅 **2027**: Escalamiento 1,200 condominios (Gate 4)
 - 📅 **2028**: Dominancia 2,800 condominios + preparar exit
-- 📅 **2029-2030**: Exit $150M-$250M USD o continuar a IPO
+- 📅 **2029-2030**: Exit $80M-$250M USD o continuar a IPO
 
 ---
 
 **Este análisis fue preparado con información proyectada y supuestos de mercado. Los resultados reales pueden variar.**
 
+**DISCLAIMER IMPORTANTE:**  
+Las probabilidades de fracaso son REALES. 65% de éxito significa 35% de fracaso completo. No hipoteques tu casa. No destruyas tu matrimonio. No sacrifiques tu salud mental. El éxito empresarial no vale tu vida.
+
 **Última actualización:** 18 de Noviembre, 2025  
-**Versión:** 1.0  
+**Versión:** 2.0 (con Deal-Breakers Analysis)  
 **Confidencial**
