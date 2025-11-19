@@ -10,36 +10,44 @@ def init_tables():
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Crear tabla msps_exo
+        # Crear tabla msps_exo con nombres de columnas correctos
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS msps_exo (
-                msp_id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                msp_id TEXT UNIQUE NOT NULL,
                 nombre TEXT NOT NULL,
-                descripcion TEXT,
-                configuracion TEXT,
+                razon_social TEXT,
+                rfc TEXT,
+                email_contacto TEXT,
+                telefono_contacto TEXT,
                 estado TEXT DEFAULT 'activo',
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by TEXT,
-                hash_actual TEXT,
-                hash_previo TEXT
+                plan TEXT DEFAULT 'basico',
+                max_condominios INTEGER DEFAULT 10,
+                configuracion_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
-        # Crear tabla condominios_exo
+        # Crear tabla condominios_exo con nombres de columnas correctos
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS condominios_exo (
-                condominio_id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                condominio_id TEXT UNIQUE NOT NULL,
                 msp_id TEXT NOT NULL,
                 nombre TEXT NOT NULL,
                 direccion TEXT,
-                configuracion TEXT,
+                ciudad TEXT,
+                estado_mx TEXT,
+                codigo_postal TEXT,
+                telefono TEXT,
+                email TEXT,
+                total_unidades INTEGER,
                 estado TEXT DEFAULT 'activo',
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by TEXT,
-                hash_actual TEXT,
-                hash_previo TEXT,
+                timezone TEXT DEFAULT 'America/Mexico_City',
+                configuracion_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (msp_id) REFERENCES msps_exo(msp_id)
             )
         """)
@@ -50,16 +58,16 @@ def init_tables():
         
         if count == 0:
             msps = [
-                ('MSP-001', 'Telmex', 'MSP Principal', 'activo'),
-                ('MSP-TEST-001', 'MSP de Prueba', 'MSP para testing', 'activo'),
-                ('MSP-DEMO-001', 'MSP Demostración', 'MSP de demostración', 'activo'),
+                ('MSP-001', 'Telmex'),
+                ('MSP-TEST-001', 'MSP de Prueba'),
+                ('MSP-DEMO-001', 'MSP Demostración'),
             ]
             
-            for msp_id, nombre, descripcion, estado in msps:
+            for msp_id, nombre in msps:
                 cursor.execute("""
-                    INSERT INTO msps_exo (msp_id, nombre, descripcion, estado)
-                    VALUES (?, ?, ?, ?)
-                """, (msp_id, nombre, descripcion, estado))
+                    INSERT INTO msps_exo (msp_id, nombre, estado)
+                    VALUES (?, ?, 'activo')
+                """, (msp_id, nombre))
         
         conn.commit()
         print("✅ Tablas multi-tenant inicializadas correctamente")
