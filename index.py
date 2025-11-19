@@ -67,7 +67,8 @@ def get_condominios_by_msp(msp_id):
         import os
         
         # Detectar tipo de base de datos
-        is_postgres = os.getenv('DB_MODE') == 'postgres' or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') == 'postgres')
+        db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
+        is_postgres = db_mode in ['postgres', 'postgresql']
         placeholder = '%s' if is_postgres else '?'
         
         with get_db() as conn:
