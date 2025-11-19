@@ -20,10 +20,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicializar tablas multi-tenant si no existen
+# Inicializar tablas multi-tenant solo una vez por sesión
 try:
     from init_db_cloud import init_tables
-    init_tables()
+    if 'MULTI_INIT_DONE' not in st.session_state:
+        init_tables()
+        st.session_state['MULTI_INIT_DONE'] = True
 except Exception as e:
     st.warning(f"⚠️ No se pudieron inicializar tablas multi-tenant: {e}")
 
@@ -33,30 +35,37 @@ apply_pending_reset()
 # Funciones de caché para datos dinámicos
 @st.cache_data(ttl=60)
 def get_msps_list():
-    """Obtener listado de MSPs desde la base de datos"""
+    """Obtener listado de MSPs desde la base de datos (seguro frente a 'no results to fetch')."""
+    from core.db import get_db
+    import os
     try:
-        import os
-        from core.db import get_db
-        
-        # Debug: mostrar modo DB
         db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
-        st.info(f"🔍 DEBUG: DB_MODE = {db_mode}")
-        
         with get_db() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-            rows = cursor.fetchall()
-            if rows:
-                # Manejar tanto dict (PostgreSQL) como tuple (SQLite)
-                if isinstance(rows[0], dict):
-                    return [(row['msp_id'], row['nombre']) for row in rows]
+            query = "SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre"
+            cursor.execute(query)
+            # Algunos entornos han mostrado ProgrammingError: no results to fetch; validar antes
+            try:
+                rows = cursor.fetchall() if getattr(cursor, 'description', None) else []
+            except Exception as fe:
+                # Si ocurre el error específico, tratamos como lista vacía y logueamos
+                if 'no results to fetch' in str(fe):
+                    st.warning("⚠️ Cursor sin result set tras SELECT; reintentar...")
+                    # Reintentar una vez con nuevo cursor
+                    cursor = conn.cursor()
+                    cursor.execute(query)
+                    rows = cursor.fetchall() if getattr(cursor, 'description', None) else []
                 else:
-                    return [(row[0], row[1]) for row in rows]
+                    raise fe
+            if rows:
+                first = rows[0]
+                if isinstance(first, dict):
+                    return [(r['msp_id'], r['nombre']) for r in rows]
+                else:
+                    return [(r[0], r[1]) for r in rows]
             return []
     except Exception as e:
         st.error(f"Error cargando MSPs: {e}")
-        import traceback
-        st.code(traceback.format_exc())
         return []
 
 @st.cache_data(ttl=60)
