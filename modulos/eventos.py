@@ -107,12 +107,10 @@ def obtener_eventos(
 #  INTERFAZ DE USUARIO STREAMLIT
 # ================================
 
-def ui_eventos(usuario):
+def ui_eventos():
     """
     Interfaz principal de eventos con filtros avanzados.
-    
-    Args:
-        usuario: ContextoUsuario con msp_id y condominio_id
+    Obtiene el contexto de usuario desde st.session_state.
     """
     st.title("📡 Eventos del Sistema (Ledger AUP-EXO)")
 
@@ -120,6 +118,18 @@ def ui_eventos(usuario):
         "Vista unificada del ledger del sistema. Filtra por entidad, evento, usuario o fecha.", 
         icon="🗂️"
     )
+
+    # -----------------------------------------
+    # Obtener contexto de usuario
+    # -----------------------------------------
+    class ContextoUsuario:
+        def __init__(self, msp_id=None, condominio_id=None):
+            self.msp_id = msp_id
+            self.condominio_id = condominio_id
+
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    usuario = ContextoUsuario(msp_id=msp_id, condominio_id=condominio_id)
 
     # -----------------------------------------
     # Filtros de la barra lateral
