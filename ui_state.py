@@ -1,33 +1,31 @@
-"""
-ui_state.py
-Gestión de estado jerárquico para dropdowns en cascada
-Soluciona resets automáticos y sincronización MSP → Condominio → Torre → Unidad → Residente
-"""
-
+# ui_state.py
 import streamlit as st
-
 
 def reset_lower(level):
     """
-    Resetea niveles inferiores según el nivel que cambió
-    
-    Args:
-        level: Nivel que cambió ('msp', 'condominio', 'torre', 'unidad')
+    Limpia niveles jerárquicos inferiores cada vez que un dropdown superior cambia.
+    Esto previene valores fantasmas, listas vacías, reinicios incorrectos y
+    desincronización entre MSP -> Condominio -> Torre -> Unidad -> Residente.
     """
+
     if level == "msp":
-        st.session_state.pop("condominio", None)
-        st.session_state.pop("torre", None)
-        st.session_state.pop("unidad", None)
-        st.session_state.pop("residente", None)
+        for key in ("condominio", "torre", "unidad", "residente"):
+            st.session_state.pop(key, None)
 
     elif level == "condominio":
-        st.session_state.pop("torre", None)
-        st.session_state.pop("unidad", None)
-        st.session_state.pop("residente", None)
+        for key in ("torre", "unidad", "residente"):
+            st.session_state.pop(key, None)
 
     elif level == "torre":
-        st.session_state.pop("unidad", None)
-        st.session_state.pop("residente", None)
+        for key in ("unidad", "residente"):
+            st.session_state.pop(key, None)
 
     elif level == "unidad":
         st.session_state.pop("residente", None)
+
+
+def safe_list(value):
+    """
+    Convierte None en lista vacía para evitar errores en selectbox
+    """
+    return value if value else []
