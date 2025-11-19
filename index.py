@@ -11,6 +11,44 @@ from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
 
+# Configuración de página (debe estar primero)
+st.set_page_config(
+    page_title="AX-S Multi-Tenant - AUP-EXO",
+    page_icon="🏢",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Funciones de caché para datos dinámicos
+@st.cache_data(ttl=60)
+def get_msps_list():
+    """Obtener listado de MSPs desde la base de datos"""
+    try:
+        from core.db import get_db
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+            rows = cursor.fetchall()
+            return {row[0]: row[1] for row in rows} if rows else {}
+    except Exception as e:
+        return {}
+
+@st.cache_data(ttl=60)
+def get_condominios_by_msp(msp_id):
+    """Obtener condominios de un MSP específico"""
+    try:
+        from core.db import get_db
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = ? AND estado = 'activo' ORDER BY nombre",
+                (msp_id,)
+            )
+            rows = cursor.fetchall()
+            return {row[0]: row[1] for row in rows} if rows else {}
+    except Exception as e:
+        return {}
+
 # Auto-inicialización de base de datos
 try:
     from core.db import get_db
@@ -37,14 +75,6 @@ except Exception as e:
         print(f"❌ Error inicializando: {init_error}")
         st.error(f"Error inicializando base de datos: {init_error}")
 
-# Configuración de página
-st.set_page_config(
-    page_title="AX-S Multi-Tenant - AUP-EXO",
-    page_icon="🏢",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Inicializar session state para contexto multi-tenant
 if 'msp_id' not in st.session_state:
     st.session_state.msp_id = None
@@ -57,38 +87,6 @@ if 'rol_usuario' not in st.session_state:
 st.sidebar.title("🏢 AX-S Multi-Tenant")
 st.sidebar.markdown("**Arquitectura AUP-EXO**")
 st.sidebar.divider()
-
-# Función para obtener MSPs y Condominios desde la base de datos
-@st.cache_data(ttl=60)
-def get_msps_list():
-    """Obtener listado de MSPs desde la base de datos"""
-    try:
-        from core.db import get_db
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-            rows = cursor.fetchall()
-            return {row[0]: row[1] for row in rows} if rows else {}
-    except Exception as e:
-        st.sidebar.warning(f"⚠️ Error cargando MSPs: {e}")
-        return {}
-
-@st.cache_data(ttl=60)
-def get_condominios_by_msp(msp_id):
-    """Obtener condominios de un MSP específico"""
-    try:
-        from core.db import get_db
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = ? AND estado = 'activo' ORDER BY nombre",
-                (msp_id,)
-            )
-            rows = cursor.fetchall()
-            return {row[0]: row[1] for row in rows} if rows else {}
-    except Exception as e:
-        st.sidebar.warning(f"⚠️ Error cargando condominios: {e}")
-        return {}
 
 # Selector de contexto según rol
 with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
