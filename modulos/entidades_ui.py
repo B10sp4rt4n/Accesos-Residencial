@@ -429,7 +429,7 @@ def _ui_consultar_entidades():
             icono = iconos.get(tipo, '📦')
 
             with st.expander(f"{icono} {tipo.upper()} - {nombre} ({identificador})"):
-                col_a, col_b = st.columns(2)
+                col_a, col_b, col_c = st.columns(3)
 
                 with col_a:
                     st.write(f"**ID:** `{entidad['entidad_id']}`")
@@ -444,6 +444,19 @@ def _ui_consultar_entidades():
                         st.write(f"**Hash:** `{hash_val[:16]}...`")
                     else:
                         st.write(f"**Hash:** `Sin hash`")
+                
+                with col_c:
+                    msp_val = entidad.get('msp_id')
+                    condo_val = entidad.get('condominio_id')
+                    if msp_val:
+                        st.write(f"**🏢 MSP:** `{msp_val}`")
+                    else:
+                        st.write(f"**🏢 MSP:** Sin asignar")
+                    
+                    if condo_val:
+                        st.write(f"**🏘️ Condominio:** `{condo_val}`")
+                    else:
+                        st.write(f"**🏘️ Condominio:** Sin asignar")
 
                 st.json(attrs)
 
@@ -486,7 +499,7 @@ def _ui_editar_entidades():
 
             # Mostrar información actual
             with st.expander("📋 Información actual", expanded=True):
-                col_info1, col_info2 = st.columns(2)
+                col_info1, col_info2, col_info3 = st.columns(3)
 
                 with col_info1:
                     st.write(f"**Tipo:** {entidad['tipo']}")
@@ -503,6 +516,19 @@ def _ui_editar_entidades():
                     hash_previo = entidad.get('hash_previo')
                     if hash_previo:
                         st.write(f"**Hash previo:** `{hash_previo[:20]}...`")
+                
+                with col_info3:
+                    msp_val = entidad.get('msp_id')
+                    condo_val = entidad.get('condominio_id')
+                    if msp_val:
+                        st.write(f"**🏢 MSP:** `{msp_val}`")
+                    else:
+                        st.write(f"**🏢 MSP:** Sin asignar")
+                    
+                    if condo_val:
+                        st.write(f"**🏘️ Condominio:** `{condo_val}`")
+                    else:
+                        st.write(f"**🏘️ Condominio:** Sin asignar")
 
                 st.json(attrs)
 

@@ -245,7 +245,7 @@ def _vista_registro_acceso():
                 
                 # Mostrar información de la entidad
                 with st.expander("📋 Información de la entidad", expanded=True):
-                    col_ent1, col_ent2 = st.columns(2)
+                    col_ent1, col_ent2, col_ent3 = st.columns(3)
                     
                     with col_ent1:
                         st.write(f"**ID:** `{entidad['entidad_id']}`")
@@ -273,6 +273,19 @@ def _vista_registro_acceso():
                             st.write(f"**Hash:** `{hash_val[:16]}...`")
                         else:
                             st.write(f"**Hash:** `Sin hash`")
+                    
+                    with col_ent3:
+                        msp_val = entidad.get('msp_id')
+                        condo_val = entidad.get('condominio_id')
+                        if msp_val:
+                            st.write(f"**🏢 MSP:** `{msp_val}`")
+                        else:
+                            st.write(f"**🏢 MSP:** Sin asignar")
+                        
+                        if condo_val:
+                            st.write(f"**🏘️ Condominio:** `{condo_val}`")
+                        else:
+                            st.write(f"**🏘️ Condominio:** Sin asignar")
                     
                     # Atributos completos
                     st.json(attrs)
