@@ -95,17 +95,24 @@ def obtener_eventos_recientes(limite: int = 10) -> List[Dict]:
     Returns:
         Lista de eventos recientes
     """
+    # La columna en 'entidades' es 'entidad_id'; confirmar existencia y fallback a 'id'
     with get_db() as db:
-        rows = db.execute("""
+        # Detectar nombre de PK usable para el JOIN
+        cols_ent = [c[0] if not isinstance(c, dict) else c['column_name'] for c in db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='entidades'").fetchall()]
+        pk_join_col = 'entidad_id' if 'entidad_id' in cols_ent else 'id'
+        # Construir query dinámica segura (placeholder al final)
+        query = f"""
             SELECT 
                 e.*,
                 ent.tipo as entidad_tipo,
                 ent.atributos as entidad_atributos
             FROM eventos e
-            LEFT JOIN entidades ent ON e.entidad_id = ent.entidad_id
+            LEFT JOIN entidades ent ON e.entidad_id = ent.{pk_join_col}
             ORDER BY e.timestamp_servidor DESC
             LIMIT ?
-        """, (limite,)).fetchall()
+        """
+        rows = db.execute(query, (limite,)).fetchall()
     
     eventos = []
     for row in rows:
