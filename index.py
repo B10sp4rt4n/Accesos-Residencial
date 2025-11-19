@@ -10,6 +10,7 @@ from modulos.entidades_ui import ui_entidades
 from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
+from ui_state import reset_lower
 
 # Configuración de página (debe estar primero)
 st.set_page_config(
@@ -121,16 +122,23 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
     elif "MSP Admin" in rol:
         st.session_state.rol_usuario = 'msp_admin'
         
-        # Dropdown dinámico de MSPs
+        # Dropdown dinámico de MSPs con reset
         msps = get_msps_list()
         if msps:
             msp_options = [""] + list(msps.keys())
             msp_display = ["-- Seleccionar MSP --"] + [f"{k} - {v}" for k, v in msps.items()]
+            
+            # Inicializar si no existe
+            if "msp" not in st.session_state:
+                st.session_state.msp = 0
+            
             msp_idx = st.selectbox(
                 "MSP:",
                 range(len(msp_options)),
                 format_func=lambda x: msp_display[x],
-                help="Selecciona el MSP para filtrar"
+                help="Selecciona el MSP para filtrar",
+                key="msp",
+                on_change=lambda: reset_lower("msp")
             )
             st.session_state.msp_id = msp_options[msp_idx] if msp_idx > 0 else None
         else:
@@ -140,29 +148,43 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
     elif "Condominio Admin" in rol:
         st.session_state.rol_usuario = 'condominio_admin'
         
-        # Dropdown de MSPs
+        # Dropdown de MSPs con reset
         msps = get_msps_list()
         if msps:
             msp_options = [""] + list(msps.keys())
             msp_display = ["-- Seleccionar MSP --"] + [f"{k} - {v}" for k, v in msps.items()]
+            
+            # Inicializar si no existe
+            if "msp" not in st.session_state:
+                st.session_state.msp = 0
+            
             msp_idx = st.selectbox(
                 "MSP:",
                 range(len(msp_options)),
-                format_func=lambda x: msp_display[x]
+                format_func=lambda x: msp_display[x],
+                key="msp",
+                on_change=lambda: reset_lower("msp")
             )
             selected_msp = msp_options[msp_idx] if msp_idx > 0 else None
             st.session_state.msp_id = selected_msp
             
-            # Dropdown de Condominios (filtrado por MSP)
+            # Dropdown de Condominios (filtrado por MSP) con reset
             if selected_msp:
                 condominios = get_condominios_by_msp(selected_msp)
                 if condominios:
                     cond_options = [""] + list(condominios.keys())
                     cond_display = ["-- Seleccionar Condominio --"] + [f"{k} - {v}" for k, v in condominios.items()]
+                    
+                    # Inicializar si no existe
+                    if "condominio" not in st.session_state:
+                        st.session_state.condominio = 0
+                    
                     cond_idx = st.selectbox(
                         "Condominio:",
                         range(len(cond_options)),
-                        format_func=lambda x: cond_display[x]
+                        format_func=lambda x: cond_display[x],
+                        key="condominio",
+                        on_change=lambda: reset_lower("condominio")
                     )
                     st.session_state.condominio_id = cond_options[cond_idx] if cond_idx > 0 else None
                 else:
@@ -178,28 +200,43 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
     else:  # Admin Local
         st.session_state.rol_usuario = 'admin_local'
         
-        # Mismo selector que Condominio Admin
+        # Mismo selector que Condominio Admin con reset
         msps = get_msps_list()
         if msps:
             msp_options = [""] + list(msps.keys())
             msp_display = ["-- Seleccionar MSP --"] + [f"{k} - {v}" for k, v in msps.items()]
+            
+            # Inicializar si no existe
+            if "msp" not in st.session_state:
+                st.session_state.msp = 0
+            
             msp_idx = st.selectbox(
                 "MSP:",
                 range(len(msp_options)),
-                format_func=lambda x: msp_display[x]
+                format_func=lambda x: msp_display[x],
+                key="msp",
+                on_change=lambda: reset_lower("msp")
             )
             selected_msp = msp_options[msp_idx] if msp_idx > 0 else None
             st.session_state.msp_id = selected_msp
             
+            # Dropdown de Condominios con reset
             if selected_msp:
                 condominios = get_condominios_by_msp(selected_msp)
                 if condominios:
                     cond_options = [""] + list(condominios.keys())
                     cond_display = ["-- Seleccionar Condominio --"] + [f"{k} - {v}" for k, v in condominios.items()]
+                    
+                    # Inicializar si no existe
+                    if "condominio" not in st.session_state:
+                        st.session_state.condominio = 0
+                    
                     cond_idx = st.selectbox(
                         "Condominio:",
                         range(len(cond_options)),
-                        format_func=lambda x: cond_display[x]
+                        format_func=lambda x: cond_display[x],
+                        key="condominio",
+                        on_change=lambda: reset_lower("condominio")
                     )
                     st.session_state.condominio_id = cond_options[cond_idx] if cond_idx > 0 else None
                 else:
