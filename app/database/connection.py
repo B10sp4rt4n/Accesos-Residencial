@@ -7,15 +7,33 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
+import toml
 
 # Importar Base de los modelos existentes
 from core.db_exo import Base
 
+# Función para obtener DATABASE_URL
+def get_database_url():
+    """Obtiene DATABASE_URL desde .streamlit/secrets.toml o variables de entorno"""
+    
+    # Intentar cargar desde .streamlit/secrets.toml primero
+    secrets_path = ".streamlit/secrets.toml"
+    if os.path.exists(secrets_path):
+        try:
+            secrets = toml.load(secrets_path)
+            if "DATABASE_URL" in secrets:
+                return secrets["DATABASE_URL"]
+        except:
+            pass
+    
+    # Fallback a variable de entorno
+    return os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/axs_exo"
+    )
+
 # Configuración de PostgreSQL
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:password@localhost:5432/axs_exo"
-)
+DATABASE_URL = get_database_url()
 
 # Crear engine
 engine = create_engine(

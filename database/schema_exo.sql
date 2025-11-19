@@ -366,7 +366,7 @@ GROUP BY c.condominio_id, c.nombre, c.msp_id;
 -- COMENTARIOS FINALES
 -- ========================================
 
-COMMENT ON DATABASE current_database() IS 'AX-S PostgreSQL Database - AUP-EXO Multitenancy MSP-Ready';
+-- COMMENT ON DATABASE current_database() IS 'AX-S PostgreSQL Database - AUP-EXO Multitenancy MSP-Ready';
 
 -- Fin del schema AX-S (AUP-EXO)
 -- Versión: 1.0

@@ -2,56 +2,49 @@
 
 ## 📋 Configuración Streamlit Cloud
 
-### 1. **Secrets (PostgreSQL - Supabase)**
+### 1. **Secrets (PostgreSQL - Neon)**
 
 En **Streamlit Cloud → App Settings → Secrets**, agregar:
 
 ```toml
-# PostgreSQL (Supabase)
+# PostgreSQL (Neon)
 DB_MODE = "postgres"
-PG_HOST = "db.xxxxxx.supabase.co"
-PG_DATABASE = "postgres"
-PG_USER = "postgres"
+DATABASE_URL = "postgresql://neondb_owner:password@ep-xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require"
+
+# O variables separadas:
+PG_HOST = "ep-xxxxx.us-east-2.aws.neon.tech"
+PG_DATABASE = "neondb"
+PG_USER = "neondb_owner"
 PG_PASSWORD = "tu_password_aqui"
 PG_PORT = "5432"
-
-# O usar DATABASE_URL (compatible)
-DATABASE_URL = "postgresql://postgres:tu_password@db.xxxxxx.supabase.co:5432/postgres"
 ```
 
-### 2. **Configuración Supabase**
+### 2. **Configuración Neon**
 
-1. Ir a [supabase.com](https://supabase.com)
+1. Ir a [neon.tech](https://neon.tech)
 2. Crear nuevo proyecto
-3. **Settings → Database → Connection string**
-4. Copiar credenciales:
-   - Host: `db.xxxxxx.supabase.co`
-   - Database: `postgres`
-   - User: `postgres`
-   - Password: (ver en Settings)
-   - Port: `5432`
+3. **Dashboard → Connection Details**
+4. Copiar **Connection String**:
+   ```
+   postgresql://neondb_owner:password@ep-xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
 
-### 3. **Inicializar Schema en Supabase**
+### 3. **Inicializar Schema en Neon**
 
-**Opción A: SQL Editor en Supabase**
+**Opción A: SQL Editor en Neon**
 
-1. Ir a **SQL Editor** en Supabase
-2. Copiar contenido de `database/schema.sql`
+1. Ir a **SQL Editor** en Neon Dashboard
+2. Copiar contenido de `database/schema_exo.sql`
 3. Ejecutar
 
-**Opción B: Desde local**
+**Opción B: Desde local con psql**
 
 ```bash
-# Configurar .env local
-DB_MODE=postgres
-PG_HOST=db.xxxxxx.supabase.co
-PG_DATABASE=postgres
-PG_USER=postgres
-PG_PASSWORD=tu_password
-PG_PORT=5432
+# Usando DATABASE_URL
+psql "postgresql://neondb_owner:password@ep-xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require" < database/schema_exo.sql
 
-# Ejecutar
-python -c "from database.pg_connection import init_pg_schema; init_pg_schema()"
+# O con Python
+python init_db_postgresql.py
 ```
 
 ### 4. **Deploy Streamlit Cloud**
