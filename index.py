@@ -11,6 +11,23 @@ from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
 from ui_state import reset_lower, safe_list, apply_pending_reset
+import logging
+
+# Configurar logger para diagnóstico multi-tenant
+logger = logging.getLogger("multi_tenant")
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    _handler.setFormatter(_formatter)
+    logger.addHandler(_handler)
+    # Nivel configurable vía secret DEBUG=true/false
+    try:
+        debug_flag = False
+        if hasattr(st, 'secrets'):
+            debug_flag = str(st.secrets.get('DEBUG', 'true')).lower() in ['1','true','yes','on']
+        logger.setLevel(logging.DEBUG if debug_flag else logging.INFO)
+    except Exception:
+        logger.setLevel(logging.DEBUG)
 
 # Configuración de página (debe estar primero)
 st.set_page_config(
@@ -40,36 +57,47 @@ def get_msps_list():
     import os
     try:
         db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
+        logger.debug(f"[get_msps_list] Inicio db_mode={db_mode}")
         with get_db() as conn:
             cursor = conn.cursor()
+            logger.debug(f"[get_msps_list] Cursor type={type(cursor)}")
             query = "SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre"
             cursor.execute(query)
+            logger.debug("[get_msps_list] Query ejecutada")
             # Algunos entornos han mostrado ProgrammingError: no results to fetch; validar antes
             try:
                 # Debug profundo
                 if getattr(cursor, 'description', None) is None:
                     st.warning("⚠️ SELECT sin description; posible cursor incorrecto")
+                    logger.warning("[get_msps_list] cursor.description es None tras SELECT")
                     rows = []
                 else:
                     rows = cursor.fetchall()
+                    logger.debug(f"[get_msps_list] fetchall rows={len(rows)}")
             except Exception as fe:
                 # Si ocurre el error específico, tratamos como lista vacía y logueamos
                 if 'no results to fetch' in str(fe):
                     st.warning("⚠️ Cursor sin result set tras SELECT; reintentar...")
+                    logger.warning(f"[get_msps_list] 'no results to fetch' fe={fe}; reintentando")
                     # Reintentar una vez con nuevo cursor
                     cursor = conn.cursor()
                     cursor.execute(query)
                     if getattr(cursor, 'description', None) is None:
                         rows = []
+                        logger.warning("[get_msps_list] Segundo intento también sin description")
                     else:
                         rows = cursor.fetchall()
+                        logger.debug(f"[get_msps_list] Segundo intento rows={len(rows)}")
                 else:
+                    logger.exception("[get_msps_list] Excepción inesperada en fetchall")
                     raise fe
             if rows:
                 first = rows[0]
                 if isinstance(first, dict):
+                    logger.debug("[get_msps_list] Formato RealDictRow detectado")
                     return [(r['msp_id'], r['nombre']) for r in rows]
                 else:
+                    logger.debug("[get_msps_list] Formato tuple/Row detectado")
                     return [(r[0], r[1]) for r in rows]
             return []
     except Exception as e:
@@ -78,6 +106,7 @@ def get_msps_list():
             if (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') in ['postgres','postgresql']):
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
+                logger.warning(f"[get_msps_list] Fallback directo psycopg2 por excepción: {e}")
                 conn = psycopg2.connect(
                     host=st.secrets['PG_HOST'],
                     database=st.secrets['PG_DATABASE'],
@@ -90,10 +119,13 @@ def get_msps_list():
                 rows = cur.fetchall()
                 conn.close()
                 if rows:
+                    logger.debug(f"[get_msps_list] Fallback obtuvo rows={len(rows)}")
                     return [(r['msp_id'], r['nombre']) for r in rows]
         except Exception as ef:
             st.error(f"Error cargando MSPs (fallback): {ef}")
+            logger.exception("[get_msps_list] Fallback también falló")
         st.error(f"Error cargando MSPs: {e}")
+        logger.exception("[get_msps_list] Error final")
         return []
 
 @st.cache_data(ttl=60)
@@ -113,9 +145,11 @@ def get_condominios_by_msp(msp_id):
         
         with get_db() as conn:
             cursor = conn.cursor()
+            logger.debug(f"[get_condominios_by_msp] msp_id={msp_id} cursor={type(cursor)} db_mode={db_mode}")
             query = f"SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = {placeholder} AND estado = 'activo' ORDER BY nombre"
             cursor.execute(query, (msp_id,))
             rows = cursor.fetchall()
+            logger.debug(f"[get_condominios_by_msp] rows={len(rows)}")
             if rows:
                 # Manejar tanto dict (PostgreSQL) como tuple (SQLite)
                 if isinstance(rows[0], dict):
@@ -125,6 +159,7 @@ def get_condominios_by_msp(msp_id):
             return []
     except Exception as e:
         st.error(f"Error cargando condominios: {e}")
+        logger.exception("[get_condominios_by_msp] Error")
         return []
 
 # Auto-inicialización de base de datos
