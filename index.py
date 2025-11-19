@@ -332,26 +332,49 @@ if opcion == "🏢 Gestión MSPs":
             with get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
-                msps = cursor.fetchall()
+                rows = cursor.fetchall()
+                
+                # Normalizar datos independientemente del formato
+                msps = []
+                if rows:
+                    for row in rows:
+                        if isinstance(row, dict):
+                            msps.append(row)
+                        else:
+                            # Convertir tupla a dict para acceso consistente
+                            # Orden: id, msp_id, nombre, razon_social, rfc, email_contacto, 
+                            #        telefono_contacto, estado, plan, max_condominios, created_at, updated_at
+                            msps.append({
+                                'id': row[0] if len(row) > 0 else None,
+                                'msp_id': row[1] if len(row) > 1 else None,
+                                'nombre': row[2] if len(row) > 2 else None,
+                                'razon_social': row[3] if len(row) > 3 else None,
+                                'rfc': row[4] if len(row) > 4 else None,
+                                'email_contacto': row[5] if len(row) > 5 else None,
+                                'telefono_contacto': row[6] if len(row) > 6 else None,
+                                'estado': row[7] if len(row) > 7 else None,
+                                'plan': row[8] if len(row) > 8 else None,
+                                'max_condominios': row[9] if len(row) > 9 else None,
+                            })
                 
                 if msps:
                     st.success(f"📊 Total de MSPs: {len(msps)}")
                     
                     for msp in msps:
-                        with st.expander(f"🏢 {msp[2]} ({msp[1]})", expanded=False):
+                        with st.expander(f"🏢 {msp['nombre']} ({msp['msp_id']})", expanded=False):
                             col_info1, col_info2 = st.columns(2)
                             
                             with col_info1:
-                                st.write(f"**ID:** {msp[1]}")
-                                st.write(f"**Razón Social:** {msp[3] or 'N/A'}")
-                                st.write(f"**RFC:** {msp[4] or 'N/A'}")
-                                st.write(f"**Email:** {msp[5]}")
+                                st.write(f"**ID:** {msp['msp_id']}")
+                                st.write(f"**Razón Social:** {msp['razon_social'] or 'N/A'}")
+                                st.write(f"**RFC:** {msp['rfc'] or 'N/A'}")
+                                st.write(f"**Email:** {msp['email_contacto']}")
                             
                             with col_info2:
-                                st.write(f"**Teléfono:** {msp[6] or 'N/A'}")
-                                st.write(f"**Plan:** {msp[8]}")
-                                st.write(f"**Estado:** {msp[7]}")
-                                st.write(f"**Max Condominios:** {msp[9]}")
+                                st.write(f"**Teléfono:** {msp['telefono_contacto'] or 'N/A'}")
+                                st.write(f"**Plan:** {msp['plan']}")
+                                st.write(f"**Estado:** {msp['estado']}")
+                                st.write(f"**Max Condominios:** {msp['max_condominios']}")
                 else:
                     st.warning("📭 No hay MSPs registrados")
                     st.info("💡 Crea tu primer MSP en la pestaña 'Nuevo MSP'")
@@ -473,29 +496,54 @@ elif opcion == "🏘️ Gestión Condominios":
                 else:
                     cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
                 
-                condominios = cursor.fetchall()
+                rows = cursor.fetchall()
+                
+                # Normalizar datos independientemente del formato
+                condominios = []
+                if rows:
+                    for row in rows:
+                        if isinstance(row, dict):
+                            condominios.append(row)
+                        else:
+                            # Convertir tupla a dict para acceso consistente
+                            # Orden: id, condominio_id, msp_id, nombre, direccion, ciudad, estado_mx, 
+                            #        cp, telefono, email, total_unidades, estado, created_at, updated_at
+                            condominios.append({
+                                'id': row[0] if len(row) > 0 else None,
+                                'condominio_id': row[1] if len(row) > 1 else None,
+                                'msp_id': row[2] if len(row) > 2 else None,
+                                'nombre': row[3] if len(row) > 3 else None,
+                                'direccion': row[4] if len(row) > 4 else None,
+                                'ciudad': row[5] if len(row) > 5 else None,
+                                'estado_mx': row[6] if len(row) > 6 else None,
+                                'cp': row[7] if len(row) > 7 else None,
+                                'telefono': row[8] if len(row) > 8 else None,
+                                'email': row[9] if len(row) > 9 else None,
+                                'total_unidades': row[10] if len(row) > 10 else None,
+                                'estado': row[11] if len(row) > 11 else None,
+                            })
                 
                 if condominios:
                     st.success(f"📊 Total de Condominios: {len(condominios)}")
                     
                     for cond in condominios:
-                        with st.expander(f"🏘️ {cond[3]} ({cond[1]})", expanded=False):
+                        with st.expander(f"🏘️ {cond['nombre']} ({cond['condominio_id']})", expanded=False):
                             col_info1, col_info2 = st.columns(2)
                             
                             with col_info1:
-                                st.write(f"**ID:** {cond[1]}")
-                                st.write(f"**MSP:** {cond[2]}")
-                                st.write(f"**Ciudad:** {cond[5] or 'N/A'}")
-                                st.write(f"**Estado:** {cond[6] or 'N/A'}")
+                                st.write(f"**ID:** {cond['condominio_id']}")
+                                st.write(f"**MSP:** {cond['msp_id']}")
+                                st.write(f"**Ciudad:** {cond['ciudad'] or 'N/A'}")
+                                st.write(f"**Estado:** {cond['estado_mx'] or 'N/A'}")
                             
                             with col_info2:
-                                st.write(f"**Teléfono:** {cond[8] or 'N/A'}")
-                                st.write(f"**Email:** {cond[9] or 'N/A'}")
-                                st.write(f"**Total Unidades:** {cond[10]}")
-                                st.write(f"**Estado:** {cond[11]}")
+                                st.write(f"**Teléfono:** {cond['telefono'] or 'N/A'}")
+                                st.write(f"**Email:** {cond['email'] or 'N/A'}")
+                                st.write(f"**Total Unidades:** {cond['total_unidades']}")
+                                st.write(f"**Estado:** {cond['estado']}")
                             
-                            if cond[4]:  # Dirección
-                                st.write(f"**Dirección:** {cond[4]}")
+                            if cond['direccion']:
+                                st.write(f"**Dirección:** {cond['direccion']}")
                 else:
                     st.warning("📭 No hay condominios registrados")
                     st.info("💡 Crea tu primer condominio en la pestaña 'Nuevo Condominio'")
