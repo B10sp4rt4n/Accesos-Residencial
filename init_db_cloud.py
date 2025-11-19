@@ -67,7 +67,9 @@ def init_tables():
         
         # Insertar MSPs de ejemplo si la tabla está vacía
         cursor.execute("SELECT COUNT(*) FROM msps_exo")
-        count = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        # Manejar tanto RealDictRow (PostgreSQL) como tuple (SQLite)
+        count = result['count'] if isinstance(result, dict) else result[0]
         
         if count == 0:
             msps = [
