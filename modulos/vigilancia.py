@@ -193,6 +193,30 @@ def _vista_registro_acceso():
     """Vista principal para registrar accesos"""
     st.subheader("🔍 Buscador Universal de Entidades")
     
+    # Mostrar contexto activo
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    rol_usuario = st.session_state.get('rol_usuario', 'super_admin')
+    
+    if msp_id or condominio_id or rol_usuario == 'super_admin':
+        with st.expander("🎯 Contexto Activo", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if rol_usuario == 'super_admin':
+                    st.info("👑 **Super Admin**\nAcceso total")
+                else:
+                    st.info(f"👤 **Rol:** {rol_usuario}")
+            with col2:
+                if msp_id:
+                    st.success(f"🏢 **MSP:** `{msp_id}`")
+                else:
+                    st.warning("🏢 **MSP:** Sin seleccionar")
+            with col3:
+                if condominio_id:
+                    st.success(f"🏘️ **Condominio:** `{condominio_id}`")
+                else:
+                    st.warning("🏘️ **Condominio:** Sin seleccionar")
+    
     # Buscador
     busqueda = st.text_input(
         "Buscar por nombre, placa, folio, QR, teléfono...",

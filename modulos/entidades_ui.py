@@ -102,6 +102,32 @@ def ui_entidades():
 def _ui_registrar_entidad():
     """Formulario universal de registro"""
     st.subheader("Registrar Nueva Entidad")
+    
+    # Mostrar contexto activo
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    rol_usuario = st.session_state.get('rol_usuario', 'super_admin')
+    
+    with st.expander("🎯 Contexto Activo", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if rol_usuario == 'super_admin':
+                st.info("👑 **Super Admin**\nAcceso total")
+            else:
+                st.info(f"👤 **Rol:** {rol_usuario}")
+        with col2:
+            if msp_id:
+                st.success(f"🏢 **MSP:** `{msp_id}`")
+            else:
+                st.warning("🏢 **MSP:** Sin seleccionar")
+        with col3:
+            if condominio_id:
+                st.success(f"🏘️ **Condominio:** `{condominio_id}`")
+            else:
+                st.warning("🏘️ **Condominio:** Sin seleccionar")
+    
+    st.info("💡 La entidad se guardará con el contexto seleccionado arriba")
+    st.divider()
 
     # Selección de tipo
     tipo = st.selectbox(
@@ -339,6 +365,32 @@ def _formulario_proveedor(plantilla):
 def _ui_consultar_entidades():
     """Vista de consulta de entidades"""
     st.subheader("Entidades Registradas")
+    
+    # Obtener contexto multi-tenant primero
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    rol_usuario = st.session_state.get('rol_usuario', 'super_admin')
+    
+    # Mostrar contexto activo ARRIBA
+    with st.expander("🎯 Contexto Activo", expanded=True):
+        col_ctx1, col_ctx2, col_ctx3 = st.columns(3)
+        with col_ctx1:
+            if rol_usuario == 'super_admin':
+                st.info("👑 **Super Admin**\nViendo todas las entidades")
+            else:
+                st.info(f"👤 **Rol:** {rol_usuario}")
+        with col_ctx2:
+            if msp_id:
+                st.success(f"🏢 **MSP:** `{msp_id}`")
+            else:
+                st.warning("🏢 **MSP:** Sin seleccionar")
+        with col_ctx3:
+            if condominio_id:
+                st.success(f"🏘️ **Condominio:** `{condominio_id}`")
+            else:
+                st.warning("🏘️ **Condominio:** Sin seleccionar")
+    
+    st.divider()
 
     # Filtros
     col1, col2, col3 = st.columns(3)
@@ -358,18 +410,6 @@ def _ui_consultar_entidades():
     with col3:
         if st.button("🔄 Actualizar lista"):
             st.rerun()
-
-    # Obtener contexto multi-tenant
-    msp_id = st.session_state.get('msp_id')
-    condominio_id = st.session_state.get('condominio_id')
-    
-    # Mostrar contexto activo
-    if msp_id or condominio_id:
-        with st.expander("🔍 Filtrado por contexto", expanded=False):
-            if msp_id:
-                st.info(f"**MSP:** {msp_id}")
-            if condominio_id:
-                st.info(f"**Condominio:** {condominio_id}")
 
     # Obtener entidades con filtrado multi-tenant
     tipo_query = None if filtro_tipo == "todos" else filtro_tipo
@@ -470,6 +510,31 @@ def _ui_consultar_entidades():
 def _ui_editar_entidades():
     """Gestión y edición de entidades existentes"""
     st.subheader("Editar o Gestionar Entidad")
+    
+    # Mostrar contexto activo
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    rol_usuario = st.session_state.get('rol_usuario', 'super_admin')
+    
+    with st.expander("🎯 Contexto Activo", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if rol_usuario == 'super_admin':
+                st.info("👑 **Super Admin**")
+            else:
+                st.info(f"👤 **Rol:** {rol_usuario}")
+        with col2:
+            if msp_id:
+                st.success(f"🏢 **MSP:** `{msp_id}`")
+            else:
+                st.warning("🏢 Sin MSP")
+        with col3:
+            if condominio_id:
+                st.success(f"🏘️ **Condominio:** `{condominio_id}`")
+            else:
+                st.warning("🏘️ Sin Condominio")
+    
+    st.divider()
 
     # Buscar entidad por ID
     entidad_id = st.text_input(
