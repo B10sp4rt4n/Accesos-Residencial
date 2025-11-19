@@ -1,6 +1,15 @@
-# 🚀 AX-S - Deploy Rápido en Streamlit Cloud
+# 🚀 AX-S Multi-Tenant - Deploy Rápido en Streamlit Cloud
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
+
+## ⚠️ IMPORTANTE: Nueva Base de Datos
+
+Esta es la **versión Multi-Tenant**. Si ya tienes la versión single-tenant:
+- ✅ **Crear NUEVO proyecto Neon** para multi-tenant
+- ✅ Ver [`DEPLOYMENT_STRATEGY.md`](./DEPLOYMENT_STRATEGY.md)
+- ❌ **NO usar misma BD** que single-tenant
+
+---
 
 ## 📦 Deploy en 5 Minutos
 
@@ -9,7 +18,7 @@
 **Opción Neon (Recomendado)**:
 1. Ve a https://neon.tech
 2. Sign up (gratis, sin tarjeta)
-3. Crea proyecto "AX-S-Production"
+3. Crea proyecto **"AX-S-MultiTenant"** (nuevo proyecto separado)
 4. Copia el **Connection String**
 
 ### 2️⃣ Deploy en Streamlit Cloud

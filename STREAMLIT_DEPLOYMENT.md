@@ -1,20 +1,37 @@
 # 🚀 Deployment a Streamlit Cloud - AX-S Multi-Tenant
 
+## ⚠️ IMPORTANTE: Versión Multi-Tenant
+
+Esta guía es para la **versión Multi-Tenant** del sistema. Si ya tienes la versión **Single-Tenant** desplegada:
+
+- ✅ **Recomendado**: Crear un **nuevo proyecto Neon** separado para multi-tenant
+- ✅ Ver [`DEPLOYMENT_STRATEGY.md`](./DEPLOYMENT_STRATEGY.md) para estrategia dual
+- ❌ **NO** usar la misma base de datos que single-tenant (schemas diferentes)
+
+---
+
 ## 📋 Pre-requisitos
 
 1. **Cuenta en Streamlit Cloud**: https://share.streamlit.io
-2. **Base de datos PostgreSQL** (recomendado: [Neon](https://neon.tech) - gratis)
+2. **Base de datos PostgreSQL NUEVA** (recomendado: [Neon](https://neon.tech) - gratis)
 3. **Repositorio en GitHub**: Ya configurado en `B10sp4rt4n/Accesos-Residencial`
 
 ---
 
 ## 🎯 Paso 1: Preparar Base de Datos PostgreSQL
 
+### ⚠️ Si ya tienes Single-Tenant en Producción
+
+**CREAR NUEVO PROYECTO NEON** para multi-tenant:
+- No usar la misma BD que single-tenant
+- Schemas son diferentes (multi-tenant tiene `msp_id`/`condominio_id`)
+- Ver [`DEPLOYMENT_STRATEGY.md`](./DEPLOYMENT_STRATEGY.md) para detalles
+
 ### Opción A: Neon (Recomendado - Gratis)
 
 1. Ve a https://neon.tech
 2. Crea una cuenta gratuita
-3. Crea un nuevo proyecto llamado "AX-S-Production"
+3. Crea un nuevo proyecto llamado **"AX-S-MultiTenant"** (nombre diferente si ya tienes single-tenant)
 4. Copia la **Connection String** que se ve así:
    ```
    postgresql://user:password@ep-xxxxx.us-east-1.aws.neon.tech/neondb?sslmode=require
