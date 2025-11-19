@@ -1,0 +1,190 @@
+-- ========================================
+-- AX-S PostgreSQL Schema
+-- Tipos nativos PostgreSQL optimizados
+-- ========================================
+
+-- Tabla: eventos (bitácora universal)
+CREATE TABLE IF NOT EXISTS eventos (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL,
+    rol VARCHAR(50),
+    detalle TEXT,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    entidad_id INTEGER,
+    score INTEGER DEFAULT 0,
+    metadata JSONB
+);
+
+CREATE INDEX idx_eventos_tipo ON eventos(tipo);
+CREATE INDEX idx_eventos_timestamp ON eventos(timestamp);
+CREATE INDEX idx_eventos_entidad ON eventos(entidad_id);
+CREATE INDEX idx_eventos_metadata ON eventos USING GIN (metadata);
+
+-- Tabla: visitas
+CREATE TABLE IF NOT EXISTS visitas (
+    id SERIAL PRIMARY KEY,
+    visitante VARCHAR(200) NOT NULL,
+    residente VARCHAR(200) NOT NULL,
+    fecha_entrada TIMESTAMPTZ DEFAULT NOW(),
+    fecha_salida TIMESTAMPTZ,
+    motivo TEXT,
+    observaciones TEXT,
+    foto_url VARCHAR(500),
+    qr_code VARCHAR(100),
+    qr_usado BOOLEAN DEFAULT FALSE,
+    metadata JSONB
+);
+
+CREATE INDEX idx_visitas_visitante ON visitas(visitante);
+CREATE INDEX idx_visitas_residente ON visitas(residente);
+CREATE INDEX idx_visitas_fecha ON visitas(fecha_entrada);
+
+-- Tabla: proveedores
+CREATE TABLE IF NOT EXISTS proveedores (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
+    empresa VARCHAR(200),
+    tipo_servicio VARCHAR(100),
+    fecha_entrada TIMESTAMPTZ DEFAULT NOW(),
+    fecha_salida TIMESTAMPTZ,
+    autorizado_por VARCHAR(200),
+    observaciones TEXT,
+    foto_url VARCHAR(500),
+    metadata JSONB
+);
+
+CREATE INDEX idx_proveedores_nombre ON proveedores(nombre);
+CREATE INDEX idx_proveedores_empresa ON proveedores(empresa);
+
+-- Tabla: bitacora_exo (eventos AUP-EXO)
+CREATE TABLE IF NOT EXISTS bitacora_exo (
+    id SERIAL PRIMARY KEY,
+    tipo_evento VARCHAR(50) NOT NULL,
+    entidad_id INTEGER,
+    entidad_tipo VARCHAR(50),
+    descripcion TEXT,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB,
+    score INTEGER DEFAULT 0,
+    nivel_riesgo VARCHAR(20) DEFAULT 'NORMAL'
+);
+
+CREATE INDEX idx_bitacora_tipo ON bitacora_exo(tipo_evento);
+CREATE INDEX idx_bitacora_entidad ON bitacora_exo(entidad_id);
+CREATE INDEX idx_bitacora_timestamp ON bitacora_exo(timestamp);
+CREATE INDEX idx_bitacora_riesgo ON bitacora_exo(nivel_riesgo);
+
+-- Tabla: residentes
+CREATE TABLE IF NOT EXISTS residentes (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
+    unidad VARCHAR(50) NOT NULL,
+    telefono VARCHAR(20),
+    email VARCHAR(200),
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_registro TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB
+);
+
+CREATE INDEX idx_residentes_unidad ON residentes(unidad);
+CREATE INDEX idx_residentes_activo ON residentes(activo);
+
+-- Tabla: entidades (AUP-EXO - sistema universal)
+CREATE TABLE IF NOT EXISTS entidades (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(200) NOT NULL,
+    score INTEGER DEFAULT 0,
+    nivel_riesgo VARCHAR(20) DEFAULT 'NORMAL',
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
+    ultima_actividad TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB
+);
+
+CREATE INDEX idx_entidades_tipo ON entidades(tipo);
+CREATE INDEX idx_entidades_score ON entidades(score);
+CREATE INDEX idx_entidades_riesgo ON entidades(nivel_riesgo);
+
+-- Tabla: politicas (reglas AUP-EXO)
+CREATE TABLE IF NOT EXISTS politicas (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL UNIQUE,
+    descripcion TEXT,
+    tipo VARCHAR(50) NOT NULL,
+    parametros JSONB NOT NULL,
+    activa BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
+    fecha_modificacion TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_politicas_tipo ON politicas(tipo);
+CREATE INDEX idx_politicas_activa ON politicas(activa);
+
+-- Tabla: sentinel_insights (AX-S Sentinel™)
+CREATE TABLE IF NOT EXISTS sentinel_insights (
+    id SERIAL PRIMARY KEY,
+    entidad_id INTEGER NOT NULL,
+    tipo_insight VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    severidad VARCHAR(20) DEFAULT 'INFO',
+    score_cambio INTEGER DEFAULT 0,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB
+);
+
+CREATE INDEX idx_sentinel_entidad ON sentinel_insights(entidad_id);
+CREATE INDEX idx_sentinel_tipo ON sentinel_insights(tipo_insight);
+CREATE INDEX idx_sentinel_severidad ON sentinel_insights(severidad);
+CREATE INDEX idx_sentinel_timestamp ON sentinel_insights(timestamp);
+
+-- Tabla: visionline_sync (integración futura)
+CREATE TABLE IF NOT EXISTS visionline_sync (
+    id SERIAL PRIMARY KEY,
+    tipo_operacion VARCHAR(50) NOT NULL,
+    entidad_id INTEGER,
+    payload JSONB,
+    estado VARCHAR(20) DEFAULT 'PENDIENTE',
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    respuesta JSONB
+);
+
+CREATE INDEX idx_visionline_estado ON visionline_sync(estado);
+CREATE INDEX idx_visionline_timestamp ON visionline_sync(timestamp);
+
+-- Vista: eventos_recientes (últimos 7 días)
+CREATE OR REPLACE VIEW eventos_recientes AS
+SELECT 
+    e.id,
+    e.tipo,
+    e.rol,
+    e.detalle,
+    e.timestamp,
+    e.entidad_id,
+    e.score,
+    ent.nombre as entidad_nombre,
+    ent.nivel_riesgo
+FROM eventos e
+LEFT JOIN entidades ent ON e.entidad_id = ent.id
+WHERE e.timestamp >= NOW() - INTERVAL '7 days'
+ORDER BY e.timestamp DESC;
+
+-- Vista: top_entidades_riesgo
+CREATE OR REPLACE VIEW top_entidades_riesgo AS
+SELECT 
+    id,
+    tipo,
+    nombre,
+    score,
+    nivel_riesgo,
+    ultima_actividad,
+    (metadata->>'eventos_count')::INTEGER as eventos_count
+FROM entidades
+WHERE score > 0
+ORDER BY score DESC, ultima_actividad DESC
+LIMIT 50;
+
+-- Comentarios para documentación
+COMMENT ON TABLE eventos IS 'Bitácora universal de todos los eventos del sistema';
+COMMENT ON TABLE entidades IS 'Sistema AUP-EXO: gestión universal de entidades con scoring';
+COMMENT ON TABLE sentinel_insights IS 'AX-S Sentinel™: insights de comportamiento y riesgo';
+COMMENT ON TABLE visionline_sync IS 'Cola de sincronización con VisionLine (futuro)';
