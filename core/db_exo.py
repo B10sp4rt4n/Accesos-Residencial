@@ -11,31 +11,48 @@ import os
 from contextlib import contextmanager
 import uuid
 from datetime import datetime
+from dotenv import load_dotenv
 
 from core.exo_hierarchy import ContextoUsuario, ControlAccesoExo
+
+# Cargar variables de entorno
+load_dotenv()
 
 
 class DatabaseExo:
     """Manager de base de datos con soporte multi-tenant AUP-EXO"""
     
-    def __init__(self, db_type: str = "sqlite"):
+    def __init__(self, db_type: str = None):
         """
         Inicializa el manager de base de datos
         
         Args:
-            db_type: "sqlite" o "postgresql"
+            db_type: "sqlite" o "postgresql" (si None, usa DB_MODE de .env)
         """
+        # Determinar tipo de base de datos
+        if db_type is None:
+            db_type = os.getenv("DB_MODE", "sqlite")
+        
         self.db_type = db_type
         self.db_path = "data/axs_exo.db" if db_type == "sqlite" else None
         
-        # PostgreSQL config
-        self.pg_config = {
-            "host": os.getenv("DB_HOST", "localhost"),
-            "port": os.getenv("DB_PORT", "5432"),
-            "database": os.getenv("DB_NAME", "axs_exo"),
-            "user": os.getenv("DB_USER", "postgres"),
-            "password": os.getenv("DB_PASSWORD", ""),
-        }
+        # PostgreSQL config - Primero intentar DATABASE_URL, luego variables separadas
+        database_url = os.getenv("DATABASE_URL")
+        
+        if database_url and database_url.startswith("postgresql://"):
+            # Usar URL completa (estilo Neon)
+            self.database_url = database_url
+            self.pg_config = None
+        else:
+            # Usar variables separadas
+            self.database_url = None
+            self.pg_config = {
+                "host": os.getenv("PG_HOST", "localhost"),
+                "port": int(os.getenv("PG_PORT", "5432")),
+                "database": os.getenv("PG_DATABASE", "axs_exo"),
+                "user": os.getenv("PG_USER", "postgres"),
+                "password": os.getenv("PG_PASSWORD", ""),
+            }
     
     @contextmanager
     def get_connection(self):
@@ -44,7 +61,11 @@ class DatabaseExo:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
         else:
-            conn = psycopg2.connect(**self.pg_config, cursor_factory=RealDictCursor)
+            # PostgreSQL: usar URL o config dict
+            if self.database_url:
+                conn = psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
+            else:
+                conn = psycopg2.connect(**self.pg_config, cursor_factory=RealDictCursor)
         
         try:
             yield conn
@@ -74,7 +95,12 @@ class DatabaseExo:
         """
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(query, params or ())
+            
+            # Ejecutar con o sin parámetros
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
             
             if fetch == "all":
                 return [dict(row) for row in cursor.fetchall()]

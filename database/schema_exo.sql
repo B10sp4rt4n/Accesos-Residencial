@@ -309,6 +309,31 @@ COMMENT ON TABLE ledger_exo IS 'Ledger universal de auditoría - trazabilidad co
 -- SECCIÓN 8: VISTAS Y REPORTES
 -- ========================================
 
+-- Vista: eventos (Compatibilidad con código legacy)
+-- Mapea ledger_exo a la estructura de tabla eventos esperada por módulos legacy
+CREATE OR REPLACE VIEW eventos AS
+SELECT 
+    l.ledger_id AS evento_id,
+    l.msp_id,
+    l.condominio_id,
+    l.entidad_id,
+    l.accion AS tipo_evento,
+    l.detalle AS metadata,
+    NULL::VARCHAR(100) AS evidencia_id,
+    ''::VARCHAR(100) AS hash_actual,
+    l.timestamp AS timestamp_servidor,
+    l.timestamp AS timestamp_cliente,
+    l.usuario_id AS actor,
+    l.ip_origen AS dispositivo,
+    l.ip_origen AS origen,
+    l.user_agent AS contexto,
+    NULL::VARCHAR(200) AS recibo_recordia
+FROM ledger_exo l;
+
+CREATE INDEX idx_eventos_view_timestamp ON ledger_exo(timestamp DESC);
+
+COMMENT ON VIEW eventos IS 'Vista de compatibilidad: mapea ledger_exo a estructura legacy de eventos';
+
 -- Vista: accesos_recientes (Últimas 24 horas por condominio)
 CREATE OR REPLACE VIEW accesos_recientes_exo AS
 SELECT 

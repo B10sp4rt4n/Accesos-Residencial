@@ -87,7 +87,7 @@ def buscar_entidad(query: str, msp_id=None, condominio_id=None) -> List[Dict]:
 # ---------------------------------------------------------------------
 def obtener_eventos_recientes(limite: int = 10) -> List[Dict]:
     """
-    Obtiene los últimos eventos del sistema
+    Obtiene los últimos eventos del sistema desde ledger_exo
     
     Args:
         limite: Número máximo de eventos a retornar
@@ -95,40 +95,44 @@ def obtener_eventos_recientes(limite: int = 10) -> List[Dict]:
     Returns:
         Lista de eventos recientes
     """
-    # La columna en 'entidades' es 'entidad_id'; confirmar existencia y fallback a 'id'
     with get_db() as db:
-        # Detectar nombre de PK usable para el JOIN
-        cols_ent = [c[0] if not isinstance(c, dict) else c['column_name'] for c in db.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_name='entidades'").fetchall()]
-        pk_join_col = 'entidad_id' if 'entidad_id' in cols_ent else 'id'
-        # Construir query dinámica segura (placeholder al final)
-        query = f"""
+        # Query directa a ledger_exo sin JOIN problemático
+        query = """
             SELECT 
-                e.*,
-                ent.tipo as entidad_tipo,
-                ent.atributos as entidad_atributos
-            FROM eventos e
-            LEFT JOIN entidades ent ON e.entidad_id = ent.{pk_join_col}
-            ORDER BY e.timestamp_servidor DESC
-            LIMIT ?
+                l.ledger_id AS evento_id,
+                l.entidad,
+                l.entidad_id,
+                l.accion AS tipo_evento,
+                l.detalle AS metadata,
+                l.timestamp AS timestamp_servidor,
+                l.usuario_id AS actor,
+                l.ip_origen AS dispositivo,
+                l.msp_id,
+                l.condominio_id,
+                '' AS hash_actual
+            FROM ledger_exo l
+            ORDER BY l.timestamp DESC
+            LIMIT %s
         """
         rows = db.execute(query, (limite,)).fetchall()
     
     eventos = []
     for row in rows:
         evento = dict(row)
-        # Parsear metadata
+        
+        # Parsear metadata/detalle como JSON
         if evento.get('metadata'):
             try:
-                evento['metadata'] = json.loads(evento['metadata'])
-            except:
+                evento['metadata'] = json.loads(evento['metadata']) if isinstance(evento['metadata'], str) else evento['metadata']
+            except (json.JSONDecodeError, TypeError):
                 evento['metadata'] = {}
-        # Parsear atributos de entidad
-        if evento.get('entidad_atributos'):
-            try:
-                evento['entidad_atributos'] = json.loads(evento['entidad_atributos'])
-            except:
-                evento['entidad_atributos'] = {}
+        else:
+            evento['metadata'] = {}
+        
+        # Extraer información de entidad desde metadata
+        evento['entidad_tipo'] = evento.get('entidad', 'unknown')
+        evento['entidad_atributos'] = evento.get('metadata', {})
+        
         eventos.append(evento)
     
     return eventos

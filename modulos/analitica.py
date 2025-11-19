@@ -18,14 +18,22 @@ from core.db import get_db
 # 1. Cargar eventos como DataFrame
 # ===========================================================
 def _get_eventos_df():
+    """Obtiene eventos desde la vista eventos (sin JOIN problemático)"""
     with get_db() as db:
         rows = db.execute("""
-            SELECT e.evento_id, e.entidad_id, e.tipo_evento, e.metadata,
-                   e.actor, e.dispositivo, e.timestamp_servidor,
-                   e.hash_actual, en.tipo AS tipo_entidad, en.atributos
+            SELECT 
+                e.evento_id, 
+                e.entidad_id, 
+                e.tipo_evento, 
+                e.metadata,
+                e.actor, 
+                e.dispositivo, 
+                e.timestamp_servidor,
+                e.hash_actual,
+                '' AS tipo_entidad,
+                '{}' AS atributos
             FROM eventos e
-            JOIN entidades en ON en.entidad_id = e.entidad_id
-            ORDER BY evento_id DESC
+            ORDER BY e.timestamp_servidor DESC
         """).fetchall()
 
     if not rows:
