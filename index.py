@@ -71,6 +71,9 @@ def get_condominios_by_msp(msp_id):
         is_postgres = db_mode in ['postgres', 'postgresql']
         placeholder = '%s' if is_postgres else '?'
         
+        # Debug temporal
+        st.info(f"🔍 DB_MODE={db_mode}, placeholder={placeholder}")
+        
         with get_db() as conn:
             cursor = conn.cursor()
             query = f"SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = {placeholder} AND estado = 'activo' ORDER BY nombre"
