@@ -408,6 +408,39 @@ if opcion == "🏢 Gestión MSPs":
         # Botón de refresh
         if st.button("🔄 Actualizar", use_container_width=False):
             st.rerun()
+
+        # Botón de diagnóstico profundo
+        if st.button("🔍 Diagnóstico MSPs", use_container_width=False):
+            try:
+                import psycopg2, os
+                if hasattr(st, 'secrets') and st.secrets.get('DB_MODE') in ['postgres','postgresql']:
+                    conn = psycopg2.connect(
+                        host=st.secrets['PG_HOST'],
+                        database=st.secrets['PG_DATABASE'],
+                        user=st.secrets['PG_USER'],
+                        password=st.secrets['PG_PASSWORD'],
+                        port=int(st.secrets.get('PG_PORT',5432))
+                    )
+                    cur = conn.cursor(cursor_factory=__import__('psycopg2.extras').extras.RealDictCursor)
+                    cur.execute("SELECT msp_id, nombre, estado, created_at, updated_at FROM msps_exo ORDER BY nombre")
+                    rows = cur.fetchall()
+                    conn.close()
+                    st.code("\n".join([f"{r['msp_id']} | {r['nombre']} | estado={r['estado']}`" for r in rows]) or "(sin filas)")
+                else:
+                    from core.db import get_db
+                    with get_db() as conn:
+                        cur = conn.cursor()
+                        cur.execute("SELECT msp_id, nombre, estado, created_at, updated_at FROM msps_exo ORDER BY nombre")
+                        rows = cur.fetchall()
+                        out=[]
+                        for r in rows:
+                            if isinstance(r, dict):
+                                out.append(f"{r['msp_id']} | {r['nombre']} | estado={r['estado']}")
+                            else:
+                                out.append(f"{r[0]} | {r[1]} | estado={r[2]}")
+                        st.code("\n".join(out) or "(sin filas)")
+            except Exception as dx:
+                st.error(f"Error diagnóstico MSPs: {dx}")
         
         # Mostrar MSPs existentes
         try:

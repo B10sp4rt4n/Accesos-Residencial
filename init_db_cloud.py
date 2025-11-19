@@ -79,7 +79,9 @@ def init_tables():
                     cursor.execute(f"""
                         INSERT INTO msps_exo (msp_id, nombre, estado)
                         VALUES ({placeholder}, {placeholder}, 'activo')
-                        ON CONFLICT (msp_id) DO UPDATE SET nombre=EXCLUDED.nombre
+                        ON CONFLICT (msp_id) DO UPDATE SET 
+                            nombre = EXCLUDED.nombre,
+                            estado = 'activo'
                     """, (msp_id, nombre))
                 else:
                     cursor.execute(f"""
@@ -88,6 +90,12 @@ def init_tables():
                     """, (msp_id, nombre))
             except Exception as se:
                 print(f"⚠️  Seed MSP fallo {msp_id}: {se}")
+        
+        # Forzar estado activo para seeds si hubiera sido modificado
+        try:
+            cursor.execute("UPDATE msps_exo SET estado='activo' WHERE msp_id IN ('MSP-001','MSP-TEST-001','MSP-DEMO-001','MSP-001_Multicable') AND estado <> 'activo'")
+        except Exception as fe:
+            print(f"⚠️  No se pudo forzar estado activo en seeds: {fe}")
         
         # Normalizar estados nulos o vacíos
         try:
