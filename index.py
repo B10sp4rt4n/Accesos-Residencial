@@ -121,58 +121,219 @@ with st.sidebar.expander("📌 Información"):
 # Renderizado según selección
 if opcion == "🏢 Gestión MSPs":
     st.title("🏢 Gestión de MSPs")
-    st.info("Módulo de gestión de Managed Service Providers (en desarrollo)")
     
-    # Mostrar MSPs existentes
-    try:
-        from core.db import get_db
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
-            msps = cursor.fetchall()
+    # Tabs para organizar funcionalidad
+    tab_list, tab_create = st.tabs(["📋 Listado", "➕ Nuevo MSP"])
+    
+    with tab_create:
+        st.subheader("➕ Crear Nuevo MSP")
+        
+        with st.form("form_crear_msp"):
+            col1, col2 = st.columns(2)
             
-            if msps:
-                st.success(f"Total de MSPs: {len(msps)}")
-                for msp in msps:
-                    with st.expander(f"MSP: {msp[2]} ({msp[1]})"):
-                        st.write(f"**Razón Social:** {msp[3]}")
-                        st.write(f"**Plan:** {msp[8]}")
-                        st.write(f"**Estado:** {msp[7]}")
-                        st.write(f"**Max Condominios:** {msp[9]}")
-            else:
-                st.warning("No hay MSPs registrados")
-    except Exception as e:
-        st.error(f"Error cargando MSPs: {e}")
+            with col1:
+                nuevo_msp_id = st.text_input("ID del MSP*", 
+                    placeholder="MSP-XXX-001",
+                    help="Identificador único del MSP")
+                nuevo_nombre = st.text_input("Nombre Comercial*", 
+                    placeholder="Mi Empresa MSP")
+                nueva_razon = st.text_input("Razón Social", 
+                    placeholder="Mi Empresa MSP S.A. de C.V.")
+                nuevo_rfc = st.text_input("RFC", 
+                    placeholder="ABC123456XYZ")
+            
+            with col2:
+                nuevo_email = st.text_input("Email de Contacto*", 
+                    placeholder="contacto@msp.com")
+                nuevo_tel = st.text_input("Teléfono", 
+                    placeholder="+52 55 1234 5678")
+                nuevo_plan = st.selectbox("Plan", 
+                    ["basic", "professional", "enterprise"])
+                nuevo_max_cond = st.number_input("Máximo de Condominios", 
+                    min_value=1, value=10, step=1)
+            
+            submit = st.form_submit_button("✅ Crear MSP", use_container_width=True)
+            
+            if submit:
+                if not nuevo_msp_id or not nuevo_nombre or not nuevo_email:
+                    st.error("⚠️ Los campos marcados con * son obligatorios")
+                else:
+                    try:
+                        from core.db import get_db
+                        from datetime import datetime
+                        
+                        with get_db() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                INSERT INTO msps_exo 
+                                (msp_id, nombre, razon_social, rfc, email_contacto, 
+                                 telefono_contacto, estado, plan, max_condominios, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, 'activo', ?, ?, ?)
+                            """, (nuevo_msp_id, nuevo_nombre, nueva_razon, nuevo_rfc,
+                                  nuevo_email, nuevo_tel, nuevo_plan, nuevo_max_cond,
+                                  datetime.now().isoformat()))
+                            conn.commit()
+                        
+                        st.success(f"✅ MSP '{nuevo_nombre}' creado exitosamente!")
+                        st.balloons()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al crear MSP: {e}")
+    
+    with tab_list:
+        st.subheader("📋 MSPs Registrados")
+        
+        # Botón de refresh
+        if st.button("🔄 Actualizar", use_container_width=False):
+            st.rerun()
+        
+        # Mostrar MSPs existentes
+        try:
+            from core.db import get_db
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
+                msps = cursor.fetchall()
+                
+                if msps:
+                    st.success(f"📊 Total de MSPs: {len(msps)}")
+                    
+                    for msp in msps:
+                        with st.expander(f"🏢 {msp[2]} ({msp[1]})", expanded=False):
+                            col_info1, col_info2 = st.columns(2)
+                            
+                            with col_info1:
+                                st.write(f"**ID:** {msp[1]}")
+                                st.write(f"**Razón Social:** {msp[3] or 'N/A'}")
+                                st.write(f"**RFC:** {msp[4] or 'N/A'}")
+                                st.write(f"**Email:** {msp[5]}")
+                            
+                            with col_info2:
+                                st.write(f"**Teléfono:** {msp[6] or 'N/A'}")
+                                st.write(f"**Plan:** {msp[8]}")
+                                st.write(f"**Estado:** {msp[7]}")
+                                st.write(f"**Max Condominios:** {msp[9]}")
+                else:
+                    st.warning("📭 No hay MSPs registrados")
+                    st.info("💡 Crea tu primer MSP en la pestaña 'Nuevo MSP'")
+        except Exception as e:
+            st.error(f"❌ Error cargando MSPs: {e}")
 
 elif opcion == "🏘️ Gestión Condominios":
     st.title("🏘️ Gestión de Condominios")
-    st.info("Módulo de gestión de Condominios (en desarrollo)")
     
-    # Filtrar por MSP si está seleccionado
-    try:
-        from core.db import get_db
-        with get_db() as conn:
-            cursor = conn.cursor()
-            if st.session_state.msp_id:
-                cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC", 
-                             (st.session_state.msp_id,))
-            else:
-                cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
+    # Tabs para organizar funcionalidad
+    tab_list, tab_create = st.tabs(["📋 Listado", "➕ Nuevo Condominio"])
+    
+    with tab_create:
+        st.subheader("➕ Crear Nuevo Condominio")
+        
+        with st.form("form_crear_condominio"):
+            col1, col2 = st.columns(2)
             
-            condominios = cursor.fetchall()
+            with col1:
+                nuevo_cond_id = st.text_input("ID del Condominio*", 
+                    placeholder="COND-XXX-001",
+                    help="Identificador único del condominio")
+                nuevo_nombre = st.text_input("Nombre*", 
+                    placeholder="Residencial Las Palmas")
+                nuevo_msp = st.text_input("MSP ID*", 
+                    value=st.session_state.msp_id or "MSP-DEMO-001",
+                    help="ID del MSP al que pertenece")
+                nueva_ciudad = st.text_input("Ciudad", 
+                    placeholder="Ciudad de México")
+                nuevo_estado = st.text_input("Estado", 
+                    placeholder="CDMX")
             
-            if condominios:
-                st.success(f"Total de Condominios: {len(condominios)}")
-                for cond in condominios:
-                    with st.expander(f"Condominio: {cond[3]} ({cond[1]})"):
-                        st.write(f"**MSP:** {cond[2]}")
-                        st.write(f"**Ciudad:** {cond[5]}")
-                        st.write(f"**Estado:** {cond[11]}")
-                        st.write(f"**Unidades:** {cond[10]}")
-            else:
-                st.warning("No hay condominios registrados")
-    except Exception as e:
-        st.error(f"Error cargando condominios: {e}")
+            with col2:
+                nueva_direccion = st.text_area("Dirección", 
+                    placeholder="Calle, Colonia, CP")
+                nuevo_telefono = st.text_input("Teléfono", 
+                    placeholder="+52 55 1234 5678")
+                nuevo_email = st.text_input("Email", 
+                    placeholder="contacto@residencial.com")
+                nuevas_unidades = st.number_input("Total de Unidades", 
+                    min_value=1, value=50, step=1)
+            
+            submit = st.form_submit_button("✅ Crear Condominio", use_container_width=True)
+            
+            if submit:
+                if not nuevo_cond_id or not nuevo_nombre or not nuevo_msp:
+                    st.error("⚠️ Los campos marcados con * son obligatorios")
+                else:
+                    try:
+                        from core.db import get_db
+                        from datetime import datetime
+                        
+                        with get_db() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                INSERT INTO condominios_exo 
+                                (condominio_id, msp_id, nombre, direccion, ciudad, estado_mx, 
+                                 telefono, email, total_unidades, estado, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)
+                            """, (nuevo_cond_id, nuevo_msp, nuevo_nombre, nueva_direccion,
+                                  nueva_ciudad, nuevo_estado, nuevo_telefono, nuevo_email,
+                                  nuevas_unidades, datetime.now().isoformat()))
+                            conn.commit()
+                        
+                        st.success(f"✅ Condominio '{nuevo_nombre}' creado exitosamente!")
+                        st.balloons()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al crear condominio: {e}")
+    
+    with tab_list:
+        st.subheader("📋 Condominios Registrados")
+        
+        # Filtro por MSP
+        col_filter1, col_filter2 = st.columns([3, 1])
+        with col_filter1:
+            filtro_msp = st.text_input("Filtrar por MSP ID:", 
+                value=st.session_state.msp_id or "",
+                placeholder="Dejar vacío para ver todos")
+        with col_filter2:
+            btn_refresh = st.button("🔄 Actualizar", use_container_width=True)
+        
+        # Listar condominios
+        try:
+            from core.db import get_db
+            with get_db() as conn:
+                cursor = conn.cursor()
+                if filtro_msp:
+                    cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC", 
+                                 (filtro_msp,))
+                else:
+                    cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
+                
+                condominios = cursor.fetchall()
+                
+                if condominios:
+                    st.success(f"📊 Total de Condominios: {len(condominios)}")
+                    
+                    for cond in condominios:
+                        with st.expander(f"🏘️ {cond[3]} ({cond[1]})", expanded=False):
+                            col_info1, col_info2 = st.columns(2)
+                            
+                            with col_info1:
+                                st.write(f"**ID:** {cond[1]}")
+                                st.write(f"**MSP:** {cond[2]}")
+                                st.write(f"**Ciudad:** {cond[5] or 'N/A'}")
+                                st.write(f"**Estado:** {cond[6] or 'N/A'}")
+                            
+                            with col_info2:
+                                st.write(f"**Teléfono:** {cond[8] or 'N/A'}")
+                                st.write(f"**Email:** {cond[9] or 'N/A'}")
+                                st.write(f"**Total Unidades:** {cond[10]}")
+                                st.write(f"**Estado:** {cond[11]}")
+                            
+                            if cond[4]:  # Dirección
+                                st.write(f"**Dirección:** {cond[4]}")
+                else:
+                    st.warning("📭 No hay condominios registrados")
+                    st.info("💡 Crea tu primer condominio en la pestaña 'Nuevo Condominio'")
+        except Exception as e:
+            st.error(f"❌ Error cargando condominios: {e}")
 
 elif opcion == "🚧 Control de Accesos":
     ui_vigilancia()
