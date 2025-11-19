@@ -35,60 +35,46 @@ st.set_page_config(
     page_icon="🏢",
     layout="wide",
 )
-        """Versión simplificada sin caché; conexión directa en modo PostgreSQL con autocommit."""
-        import os
-        db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
-        logger.debug(f"[get_msps_list] SIMPLE db_mode={db_mode}")
-        try:
-            if db_mode in ['postgres','postgresql'] and hasattr(st, 'secrets'):
-                import psycopg2
-                from psycopg2.extras import RealDictCursor
-                conn = psycopg2.connect(
-                    host=st.secrets['PG_HOST'],
-                    database=st.secrets['PG_DATABASE'],
-                    user=st.secrets['PG_USER'],
-                    password=st.secrets['PG_PASSWORD'],
-                    port=int(st.secrets.get('PG_PORT',5432))
-                )
-                conn.autocommit = True
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-                rows = cur.fetchall()
-                conn.close()
-                logger.debug(f"[get_msps_list] rows={len(rows)} (direct psycopg2)")
-                return [(r['msp_id'], r['nombre']) for r in rows]
-            # Fallback a wrapper
-            from core.db import get_db
-            with get_db() as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado='activo' ORDER BY nombre")
-                rows = cur.fetchall() if getattr(cur, 'description', None) else []
-                logger.debug(f"[get_msps_list] rows={len(rows)} (wrapper)")
-                if rows:
-                    first = rows[0]
-                    if isinstance(first, dict):
-                        return [(r['msp_id'], r['nombre']) for r in rows]
-                    else:
-                        return [(r[0], r[1]) for r in rows]
-                return []
-        except Exception as e:
-            logger.exception("[get_msps_list] Error en versión simplificada")
-            st.error(f"Error cargando MSPs: {e}")
-            return []
-                    port=int(st.secrets.get('PG_PORT',5432))
-                )
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-                rows = cur.fetchall()
-                conn.close()
-                if rows:
-                    logger.debug(f"[get_msps_list] Fallback obtuvo rows={len(rows)}")
+def get_msps_list():
+    """Versión simplificada sin caché; conexión directa en modo PostgreSQL con autocommit."""
+    import os
+    db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
+    logger.debug(f"[get_msps_list] SIMPLE db_mode={db_mode}")
+    try:
+        if db_mode in ['postgres','postgresql'] and hasattr(st, 'secrets'):
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            conn = psycopg2.connect(
+                host=st.secrets['PG_HOST'],
+                database=st.secrets['PG_DATABASE'],
+                user=st.secrets['PG_USER'],
+                password=st.secrets['PG_PASSWORD'],
+                port=int(st.secrets.get('PG_PORT',5432))
+            )
+            conn.autocommit = True
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+            rows = cur.fetchall()
+            conn.close()
+            logger.debug(f"[get_msps_list] rows={len(rows)} (direct psycopg2)")
+            return [(r['msp_id'], r['nombre']) for r in rows]
+        # Fallback a wrapper
+        from core.db import get_db
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado='activo' ORDER BY nombre")
+            rows = cur.fetchall() if getattr(cur, 'description', None) else []
+            logger.debug(f"[get_msps_list] rows={len(rows)} (wrapper)")
+            if rows:
+                first = rows[0]
+                if isinstance(first, dict):
                     return [(r['msp_id'], r['nombre']) for r in rows]
-        except Exception as ef:
-            st.error(f"Error cargando MSPs (fallback): {ef}")
-            logger.exception("[get_msps_list] Fallback también falló")
+                else:
+                    return [(r[0], r[1]) for r in rows]
+            return []
+    except Exception as e:
+        logger.exception("[get_msps_list] Error en versión simplificada")
         st.error(f"Error cargando MSPs: {e}")
-        logger.exception("[get_msps_list] Error final")
         return []
 
 @st.cache_data(ttl=60)
