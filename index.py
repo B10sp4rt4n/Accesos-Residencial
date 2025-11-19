@@ -280,6 +280,20 @@ with st.sidebar.expander("📌 Información"):
 if opcion == "🏢 Gestión MSPs":
     st.title("🏢 Gestión de MSPs")
     
+    # Obtener contexto
+    msp_id_actual = st.session_state.get('msp_id')
+    rol_actual = st.session_state.get('rol_usuario', 'super_admin')
+    
+    # Mostrar banner de contexto
+    if rol_actual != 'super_admin' and msp_id_actual:
+        st.info(f"🏢 **Viendo solo tu MSP:** `{msp_id_actual}`")
+    elif rol_actual == 'super_admin':
+        st.success("👑 **Super Admin:** Viendo todos los MSPs")
+    else:
+        st.warning("⚠️ Selecciona un MSP en el contexto del sidebar")
+    
+    st.divider()
+    
     # Tabs para organizar funcionalidad
     tab_list, tab_create = st.tabs(["📋 Listado", "➕ Nuevo MSP"])
     
@@ -350,7 +364,18 @@ if opcion == "🏢 Gestión MSPs":
             from core.db import get_db
             with get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
+                
+                # Filtrar por contexto
+                if rol_actual == 'super_admin':
+                    # Super Admin ve todos
+                    cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
+                elif msp_id_actual:
+                    # MSP Admin solo ve su propio MSP
+                    cursor.execute("SELECT * FROM msps_exo WHERE msp_id = ? ORDER BY created_at DESC", (msp_id_actual,))
+                else:
+                    # Sin contexto, no mostrar nada
+                    rows = []
+                    
                 rows = cursor.fetchall()
                 
                 # Normalizar datos independientemente del formato
@@ -403,18 +428,47 @@ if opcion == "🏢 Gestión MSPs":
 elif opcion == "🏘️ Gestión Condominios":
     st.title("🏘️ Gestión de Condominios")
     
+    # Obtener contexto
+    msp_id_actual = st.session_state.get('msp_id')
+    condo_id_actual = st.session_state.get('condominio_id')
+    rol_actual = st.session_state.get('rol_usuario', 'super_admin')
+    
+    # Mostrar banner de contexto
+    if rol_actual == 'super_admin':
+        st.success("👑 **Super Admin:** Viendo todos los Condominios")
+    elif msp_id_actual and condo_id_actual:
+        st.info(f"🏘️ **Viendo solo:** MSP `{msp_id_actual}` → Condominio `{condo_id_actual}`")
+    elif msp_id_actual:
+        st.info(f"🏢 **Viendo condominios del MSP:** `{msp_id_actual}`")
+    else:
+        st.warning("⚠️ Selecciona un MSP en el contexto del sidebar")
+    
+    st.divider()
+    
     # Tabs para organizar funcionalidad
     tab_list, tab_create = st.tabs(["📋 Listado", "➕ Nuevo Condominio"])
     
     with tab_create:
         st.subheader("➕ Crear Nuevo Condominio")
         
-        # Obtener lista de MSPs disponibles
+        # Obtener lista de MSPs disponibles (respetando contexto del usuario)
         try:
             from core.db import get_db
             with get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+                
+                # Filtrar MSPs según el contexto del usuario
+                if rol_actual == "super_admin":
+                    # Super Admin ve todos los MSPs
+                    cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+                elif msp_id_actual:
+                    # MSP Admin solo puede crear condominios para su propio MSP
+                    cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE msp_id = ? AND estado = 'activo' ORDER BY nombre",
+                                 (msp_id_actual,))
+                else:
+                    # Sin contexto, no mostrar MSPs
+                    cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE 1=0")
+                
                 rows = cursor.fetchall()
                 
                 # Convertir a lista de tuplas independientemente del formato
@@ -504,16 +558,31 @@ elif opcion == "🏘️ Gestión Condominios":
         with col_filter2:
             btn_refresh = st.button("🔄 Actualizar", use_container_width=True)
         
-        # Listar condominios
+        # Listar condominios (respetando contexto del usuario)
         try:
             from core.db import get_db
             with get_db() as conn:
                 cursor = conn.cursor()
-                if filtro_msp:
-                    cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC", 
-                                 (filtro_msp,))
+                
+                # Filtrar según el contexto del usuario
+                if rol_actual == "super_admin":
+                    # Super Admin ve todos los condominios
+                    if filtro_msp:
+                        cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC", 
+                                     (filtro_msp,))
+                    else:
+                        cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
+                elif condo_id_actual:
+                    # Condominio Admin solo ve su condominio
+                    cursor.execute("SELECT * FROM condominios_exo WHERE condominio_id = ? ORDER BY created_at DESC",
+                                 (condo_id_actual,))
+                elif msp_id_actual:
+                    # MSP Admin solo ve condominios de su MSP
+                    cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC",
+                                 (msp_id_actual,))
                 else:
-                    cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
+                    # Sin contexto, no mostrar nada
+                    cursor.execute("SELECT * FROM condominios_exo WHERE 1=0")
                 
                 rows = cursor.fetchall()
                 
