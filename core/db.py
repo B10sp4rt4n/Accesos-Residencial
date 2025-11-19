@@ -132,19 +132,33 @@ def get_db():
                 cur.execute = execute_compat
                 return cur
             
-            conn.cursor = cursor_with_dict
+            # Crear wrapper de conexión para compatibilidad
+            class PostgresConnectionWrapper:
+                def __init__(self, pg_conn):
+                    self._conn = pg_conn
+                
+                def cursor(self):
+                    return cursor_with_dict()
+                
+                def execute(self, query, params=None):
+                    cur = self.cursor()
+                    query = query.replace('?', '%s')
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    return cur
+                
+                def commit(self):
+                    return self._conn.commit()
+                
+                def rollback(self):
+                    return self._conn.rollback()
+                
+                def close(self):
+                    return self._conn.close()
             
-            # IMPORTANTE: Agregar método execute() a la conexión (para compatibilidad con SQLite)
-            def connection_execute(query, params=None):
-                cur = conn.cursor()
-                query = query.replace('?', '%s')
-                if params:
-                    cur.execute(query, params)
-                else:
-                    cur.execute(query)
-                return cur
-            
-            conn.execute = connection_execute
+            conn = PostgresConnectionWrapper(conn)
         
         yield conn
         

@@ -1,7 +1,7 @@
 # index.py
 """
 Sistema de Control de Accesos Residencial
-Arquitectura AUP-EXO
+Arquitectura AUP-EXO Multi-Tenant
 """
 
 import streamlit as st
@@ -39,20 +39,64 @@ except Exception as e:
 
 # Configuración de página
 st.set_page_config(
-    page_title="Accesos Residencial - AUP-EXO",
-    page_icon="🏠",
+    page_title="AX-S Multi-Tenant - AUP-EXO",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Sidebar - Menú principal
-st.sidebar.title("🏠 Accesos Residencial")
-st.sidebar.markdown("**Sistema AUP-EXO**")
+# Inicializar session state para contexto multi-tenant
+if 'msp_id' not in st.session_state:
+    st.session_state.msp_id = None
+if 'condominio_id' not in st.session_state:
+    st.session_state.condominio_id = None
+if 'rol_usuario' not in st.session_state:
+    st.session_state.rol_usuario = 'super_admin'  # Por defecto Super Admin
+
+# Sidebar - Contexto Multi-Tenant
+st.sidebar.title("🏢 AX-S Multi-Tenant")
+st.sidebar.markdown("**Arquitectura AUP-EXO**")
+st.sidebar.divider()
+
+# Selector de contexto según rol
+with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
+    rol = st.selectbox(
+        "Rol:",
+        ["Super Admin (DS)", "MSP Admin (DD)", "Condominio Admin (SE)", "Admin Local (NO)"],
+        help="Selecciona tu nivel de acceso"
+    )
+    
+    if "Super Admin" in rol:
+        st.session_state.rol_usuario = 'super_admin'
+        st.info("🌟 Acceso total al sistema")
+        
+    elif "MSP Admin" in rol:
+        st.session_state.rol_usuario = 'msp_admin'
+        # Aquí iría un selector de MSP desde la base de datos
+        msp_seleccionado = st.text_input("MSP ID:", value="MSP-DEMO-001")
+        st.session_state.msp_id = msp_seleccionado if msp_seleccionado else None
+        
+    elif "Condominio Admin" in rol:
+        st.session_state.rol_usuario = 'condominio_admin'
+        msp_seleccionado = st.text_input("MSP ID:", value="MSP-DEMO-001")
+        cond_seleccionado = st.text_input("Condominio ID:", value="COND-DEMO-001")
+        st.session_state.msp_id = msp_seleccionado if msp_seleccionado else None
+        st.session_state.condominio_id = cond_seleccionado if cond_seleccionado else None
+        
+    else:  # Admin Local
+        st.session_state.rol_usuario = 'admin_local'
+        msp_seleccionado = st.text_input("MSP ID:", value="MSP-DEMO-001")
+        cond_seleccionado = st.text_input("Condominio ID:", value="COND-DEMO-001")
+        st.session_state.msp_id = msp_seleccionado if msp_seleccionado else None
+        st.session_state.condominio_id = cond_seleccionado if cond_seleccionado else None
+
 st.sidebar.divider()
 
 opcion = st.sidebar.radio(
     "Seleccione módulo:",
     [
+        "🏢 Gestión MSPs",
+        "🏘️ Gestión Condominios",
         "🚧 Control de Accesos",
         "🏢 Registro de Entidades",
         "📊 Historial de Eventos",
@@ -66,12 +110,71 @@ st.sidebar.divider()
 
 # Información del sistema en sidebar
 with st.sidebar.expander("📌 Información"):
-    st.caption("**Versión:** 2.0.0-aup-exo")
-    st.caption("**Arquitectura:** AUP-EXO")
-    st.caption("**Fases completadas:** A, A.1, A.2, A.3, A.4, A.5")
+    st.caption("**Versión:** 2.0.0-aup-exo-multitenant")
+    st.caption("**Arquitectura:** AUP-EXO Multi-Tenant")
+    st.caption("**Base de datos:** PostgreSQL (Neon)")
+    if st.session_state.msp_id:
+        st.caption(f"**MSP Activo:** {st.session_state.msp_id}")
+    if st.session_state.condominio_id:
+        st.caption(f"**Condominio:** {st.session_state.condominio_id}")
 
 # Renderizado según selección
-if opcion == "🚧 Control de Accesos":
+if opcion == "🏢 Gestión MSPs":
+    st.title("🏢 Gestión de MSPs")
+    st.info("Módulo de gestión de Managed Service Providers (en desarrollo)")
+    
+    # Mostrar MSPs existentes
+    try:
+        from core.db import get_db
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
+            msps = cursor.fetchall()
+            
+            if msps:
+                st.success(f"Total de MSPs: {len(msps)}")
+                for msp in msps:
+                    with st.expander(f"MSP: {msp[2]} ({msp[1]})"):
+                        st.write(f"**Razón Social:** {msp[3]}")
+                        st.write(f"**Plan:** {msp[8]}")
+                        st.write(f"**Estado:** {msp[7]}")
+                        st.write(f"**Max Condominios:** {msp[9]}")
+            else:
+                st.warning("No hay MSPs registrados")
+    except Exception as e:
+        st.error(f"Error cargando MSPs: {e}")
+
+elif opcion == "🏘️ Gestión Condominios":
+    st.title("🏘️ Gestión de Condominios")
+    st.info("Módulo de gestión de Condominios (en desarrollo)")
+    
+    # Filtrar por MSP si está seleccionado
+    try:
+        from core.db import get_db
+        with get_db() as conn:
+            cursor = conn.cursor()
+            if st.session_state.msp_id:
+                cursor.execute("SELECT * FROM condominios_exo WHERE msp_id = ? ORDER BY created_at DESC", 
+                             (st.session_state.msp_id,))
+            else:
+                cursor.execute("SELECT * FROM condominios_exo ORDER BY created_at DESC")
+            
+            condominios = cursor.fetchall()
+            
+            if condominios:
+                st.success(f"Total de Condominios: {len(condominios)}")
+                for cond in condominios:
+                    with st.expander(f"Condominio: {cond[3]} ({cond[1]})"):
+                        st.write(f"**MSP:** {cond[2]}")
+                        st.write(f"**Ciudad:** {cond[5]}")
+                        st.write(f"**Estado:** {cond[11]}")
+                        st.write(f"**Unidades:** {cond[10]}")
+            else:
+                st.warning("No hay condominios registrados")
+    except Exception as e:
+        st.error(f"Error cargando condominios: {e}")
+
+elif opcion == "🚧 Control de Accesos":
     ui_vigilancia()
 
 elif opcion == "🏢 Registro de Entidades":
