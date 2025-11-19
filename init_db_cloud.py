@@ -6,14 +6,27 @@ Crea las tablas msps_exo y condominios_exo si no existen
 def init_tables():
     """Inicializar tablas multi-tenant si no existen"""
     from core.db import get_db
+    import os
     
     with get_db() as conn:
         cursor = conn.cursor()
         
+        # Detectar si es PostgreSQL o SQLite
+        try:
+            import streamlit as st
+            db_mode = st.secrets.get('DB_MODE', 'sqlite')
+        except:
+            db_mode = os.getenv('DB_MODE', 'sqlite')
+        
+        is_postgres = db_mode in ['postgres', 'postgresql']
+        
+        # Sintaxis compatible
+        pk_syntax = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        
         # Crear tabla msps_exo con nombres de columnas correctos
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS msps_exo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk_syntax},
                 msp_id TEXT UNIQUE NOT NULL,
                 nombre TEXT NOT NULL,
                 razon_social TEXT,
@@ -30,9 +43,9 @@ def init_tables():
         """)
         
         # Crear tabla condominios_exo con nombres de columnas correctos
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS condominios_exo (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk_syntax},
                 condominio_id TEXT UNIQUE NOT NULL,
                 msp_id TEXT NOT NULL,
                 nombre TEXT NOT NULL,
@@ -63,10 +76,11 @@ def init_tables():
                 ('MSP-DEMO-001', 'MSP Demostración'),
             ]
             
+            placeholder = '%s' if is_postgres else '?'
             for msp_id, nombre in msps:
-                cursor.execute("""
+                cursor.execute(f"""
                     INSERT INTO msps_exo (msp_id, nombre, estado)
-                    VALUES (?, ?, 'activo')
+                    VALUES ({placeholder}, {placeholder}, 'activo')
                 """, (msp_id, nombre))
         
         conn.commit()
