@@ -37,7 +37,8 @@ def get_db():
         print(f"🔍 DEBUG: Streamlit detectado, hasattr secrets: {hasattr(st, 'secrets')}")
         if hasattr(st, 'secrets'):
             print(f"🔍 DEBUG: Secrets disponibles: {list(st.secrets.keys())}")
-            if st.secrets.get('DB_MODE') == 'postgres':
+            db_mode = st.secrets.get('DB_MODE', '')
+            if db_mode in ['postgres', 'postgresql']:
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
                 import socket
