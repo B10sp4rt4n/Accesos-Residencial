@@ -53,24 +53,29 @@ def get_msps_list():
             )
             conn.autocommit = True
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-            rows = cur.fetchall()
+            # Obtener todas las filas para diagnosticar por qué solo aparecen 2 activas
+            cur.execute("SELECT msp_id, nombre, estado, created_at FROM msps_exo ORDER BY nombre")
+            all_rows = cur.fetchall()
+            activos = [r for r in all_rows if r.get('estado') == 'activo']
+            logger.debug(f"[get_msps_list] total={len(all_rows)} activos={len(activos)} detalle={[ (r['msp_id'], r['estado']) for r in all_rows ]}")
             conn.close()
-            logger.debug(f"[get_msps_list] rows={len(rows)} (direct psycopg2)")
-            return [(r['msp_id'], r['nombre']) for r in rows]
+            return [(r['msp_id'], r['nombre']) for r in activos]
         # Fallback a wrapper
         from core.db import get_db
         with get_db() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado='activo' ORDER BY nombre")
-            rows = cur.fetchall() if getattr(cur, 'description', None) else []
-            logger.debug(f"[get_msps_list] rows={len(rows)} (wrapper)")
-            if rows:
-                first = rows[0]
+            cur.execute("SELECT msp_id, nombre, estado, created_at FROM msps_exo ORDER BY nombre")
+            rows_all = cur.fetchall() if getattr(cur, 'description', None) else []
+            def get_estado(row):
+                return row['estado'] if isinstance(row, dict) else row[2]
+            activos = [r for r in rows_all if get_estado(r) == 'activo']
+            logger.debug(f"[get_msps_list] wrapper total={len(rows_all)} activos={len(activos)}")
+            if activos:
+                first = activos[0]
                 if isinstance(first, dict):
-                    return [(r['msp_id'], r['nombre']) for r in rows]
+                    return [(r['msp_id'], r['nombre']) for r in activos]
                 else:
-                    return [(r[0], r[1]) for r in rows]
+                    return [(r[0], r[1]) for r in activos]
             return []
     except Exception as e:
         logger.exception("[get_msps_list] Error en versión simplificada")
