@@ -415,18 +415,15 @@ if opcion == "🏢 Gestión MSPs":
             with get_db() as conn:
                 cursor = conn.cursor()
                 
-                # Filtrar por contexto
+                # Filtrar por contexto (evitar fetch sin execute)
                 if rol_actual == 'super_admin':
-                    # Super Admin ve todos
                     cursor.execute("SELECT * FROM msps_exo ORDER BY created_at DESC")
+                    rows = cursor.fetchall()
                 elif msp_id_actual:
-                    # MSP Admin solo ve su propio MSP
                     cursor.execute("SELECT * FROM msps_exo WHERE msp_id = ? ORDER BY created_at DESC", (msp_id_actual,))
+                    rows = cursor.fetchall()
                 else:
-                    # Sin contexto, no mostrar nada
-                    rows = []
-                    
-                rows = cursor.fetchall()
+                    rows = []  # No ejecutar fetchall sobre cursor vacío
                 
                 # Normalizar datos independientemente del formato
                 msps = []
