@@ -65,25 +65,35 @@ def init_tables():
             )
         """)
         
-        # Insertar MSPs de ejemplo si la tabla está vacía
-        cursor.execute("SELECT COUNT(*) FROM msps_exo")
-        result = cursor.fetchone()
-        # Manejar tanto RealDictRow (PostgreSQL) como tuple (SQLite)
-        count = result['count'] if isinstance(result, dict) else result[0]
+        # Seed idempotente de MSPs esperados (incluso si ya hay algunos)
+        msps_seed = [
+            ('MSP-001', 'Telmex'),
+            ('MSP-TEST-001', 'MSP de Prueba'),
+            ('MSP-DEMO-001', 'MSP Demostración'),
+            ('MSP-001_Multicable', 'Multicable'),
+        ]
+        placeholder = '%s' if is_postgres else '?'
+        for msp_id, nombre in msps_seed:
+            try:
+                if is_postgres:
+                    cursor.execute(f"""
+                        INSERT INTO msps_exo (msp_id, nombre, estado)
+                        VALUES ({placeholder}, {placeholder}, 'activo')
+                        ON CONFLICT (msp_id) DO UPDATE SET nombre=EXCLUDED.nombre
+                    """, (msp_id, nombre))
+                else:
+                    cursor.execute(f"""
+                        INSERT OR REPLACE INTO msps_exo (msp_id, nombre, estado)
+                        VALUES ({placeholder}, {placeholder}, 'activo')
+                    """, (msp_id, nombre))
+            except Exception as se:
+                print(f"⚠️  Seed MSP fallo {msp_id}: {se}")
         
-        if count == 0:
-            msps = [
-                ('MSP-001', 'Telmex'),
-                ('MSP-TEST-001', 'MSP de Prueba'),
-                ('MSP-DEMO-001', 'MSP Demostración'),
-            ]
-            
-            placeholder = '%s' if is_postgres else '?'
-            for msp_id, nombre in msps:
-                cursor.execute(f"""
-                    INSERT INTO msps_exo (msp_id, nombre, estado)
-                    VALUES ({placeholder}, {placeholder}, 'activo')
-                """, (msp_id, nombre))
+        # Normalizar estados nulos o vacíos
+        try:
+            cursor.execute("UPDATE msps_exo SET estado='activo' WHERE estado IS NULL OR estado=''")
+        except Exception as ne:
+            print(f"⚠️  No se pudo normalizar estados MSP: {ne}")
         
         conn.commit()
         print("✅ Tablas multi-tenant inicializadas correctamente")
