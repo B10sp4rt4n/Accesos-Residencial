@@ -1,0 +1,4 @@
+# Paquetes del sistema necesarios para Streamlit Cloud
+# Este archivo es opcional - Streamlit Cloud incluye la mayoría de estos paquetes
+
+libpq-dev
