@@ -20,6 +20,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Inicializar tablas multi-tenant si no existen
+try:
+    from init_db_cloud import init_tables
+    init_tables()
+except Exception as e:
+    st.warning(f"⚠️ No se pudieron inicializar tablas multi-tenant: {e}")
+
 # Aplicar resets pendientes del ciclo anterior
 apply_pending_reset()
 
