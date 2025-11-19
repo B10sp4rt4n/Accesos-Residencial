@@ -29,8 +29,15 @@ def get_msps_list():
             cursor = conn.cursor()
             cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
             rows = cursor.fetchall()
-            return {row[0]: row[1] for row in rows} if rows else {}
+            if rows:
+                # Manejar tanto dict (PostgreSQL) como tuple (SQLite)
+                if isinstance(rows[0], dict):
+                    return {row['msp_id']: row['nombre'] for row in rows}
+                else:
+                    return {row[0]: row[1] for row in rows}
+            return {}
     except Exception as e:
+        st.error(f"Error cargando MSPs: {e}")
         return {}
 
 @st.cache_data(ttl=60)
@@ -38,15 +45,26 @@ def get_condominios_by_msp(msp_id):
     """Obtener condominios de un MSP específico"""
     try:
         from core.db import get_db
+        import os
+        
+        # Detectar tipo de base de datos
+        is_postgres = os.getenv('DB_MODE') == 'postgres' or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') == 'postgres')
+        placeholder = '%s' if is_postgres else '?'
+        
         with get_db() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = ? AND estado = 'activo' ORDER BY nombre",
-                (msp_id,)
-            )
+            query = f"SELECT condominio_id, nombre FROM condominios_exo WHERE msp_id = {placeholder} AND estado = 'activo' ORDER BY nombre"
+            cursor.execute(query, (msp_id,))
             rows = cursor.fetchall()
-            return {row[0]: row[1] for row in rows} if rows else {}
+            if rows:
+                # Manejar tanto dict (PostgreSQL) como tuple (SQLite)
+                if isinstance(rows[0], dict):
+                    return {row['condominio_id']: row['nombre'] for row in rows}
+                else:
+                    return {row[0]: row[1] for row in rows}
+            return {}
     except Exception as e:
+        st.error(f"Error cargando condominios: {e}")
         return {}
 
 # Auto-inicialización de base de datos
