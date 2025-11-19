@@ -46,7 +46,12 @@ def get_msps_list():
             cursor.execute(query)
             # Algunos entornos han mostrado ProgrammingError: no results to fetch; validar antes
             try:
-                rows = cursor.fetchall() if getattr(cursor, 'description', None) else []
+                # Debug profundo
+                if getattr(cursor, 'description', None) is None:
+                    st.warning("⚠️ SELECT sin description; posible cursor incorrecto")
+                    rows = []
+                else:
+                    rows = cursor.fetchall()
             except Exception as fe:
                 # Si ocurre el error específico, tratamos como lista vacía y logueamos
                 if 'no results to fetch' in str(fe):
@@ -54,7 +59,10 @@ def get_msps_list():
                     # Reintentar una vez con nuevo cursor
                     cursor = conn.cursor()
                     cursor.execute(query)
-                    rows = cursor.fetchall() if getattr(cursor, 'description', None) else []
+                    if getattr(cursor, 'description', None) is None:
+                        rows = []
+                    else:
+                        rows = cursor.fetchall()
                 else:
                     raise fe
             if rows:
@@ -65,6 +73,26 @@ def get_msps_list():
                     return [(r[0], r[1]) for r in rows]
             return []
     except Exception as e:
+        # Fallback directo a psycopg2 si estamos en PostgreSQL
+        try:
+            if (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') in ['postgres','postgresql']):
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                conn = psycopg2.connect(
+                    host=st.secrets['PG_HOST'],
+                    database=st.secrets['PG_DATABASE'],
+                    user=st.secrets['PG_USER'],
+                    password=st.secrets['PG_PASSWORD'],
+                    port=int(st.secrets.get('PG_PORT',5432))
+                )
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+                rows = cur.fetchall()
+                conn.close()
+                if rows:
+                    return [(r['msp_id'], r['nombre']) for r in rows]
+        except Exception as ef:
+            st.error(f"Error cargando MSPs (fallback): {ef}")
         st.error(f"Error cargando MSPs: {e}")
         return []
 
