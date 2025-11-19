@@ -373,7 +373,16 @@ elif opcion == "🏘️ Gestión Condominios":
             with get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
-                msps_disponibles = cursor.fetchall()
+                rows = cursor.fetchall()
+                
+                # Convertir a lista de tuplas independientemente del formato
+                msps_disponibles = []
+                if rows:
+                    for row in rows:
+                        if isinstance(row, dict):
+                            msps_disponibles.append((row['msp_id'], row['nombre']))
+                        else:
+                            msps_disponibles.append((row[0], row[1]))
         except Exception as e:
             st.error(f"Error cargando MSPs: {e}")
             msps_disponibles = []
@@ -392,7 +401,7 @@ elif opcion == "🏘️ Gestión Condominios":
                         placeholder="Residencial Las Palmas")
                     
                     # Selector de MSP
-                    msp_options = {f"{msp[1]} ({msp[0]})": msp[0] for msp in msps_disponibles}
+                    msp_options = {f"{nombre} ({msp_id})": msp_id for msp_id, nombre in msps_disponibles}
                     msp_seleccionado = st.selectbox("MSP*", 
                         options=list(msp_options.keys()),
                         help="Selecciona el MSP al que pertenecerá este condominio")
