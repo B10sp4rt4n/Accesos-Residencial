@@ -351,19 +351,25 @@ if opcion == "🏢 Gestión MSPs":
                         
                         with get_db() as conn:
                             cursor = conn.cursor()
-                            cursor.execute("""
-                                INSERT INTO msps_exo 
-                                (msp_id, nombre, razon_social, rfc, email_contacto, 
-                                 telefono_contacto, estado, plan, max_condominios, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, 'activo', ?, ?, ?)
-                            """, (nuevo_msp_id, nuevo_nombre, nueva_razon, nuevo_rfc,
-                                  nuevo_email, nuevo_tel, nuevo_plan, nuevo_max_cond,
-                                  datetime.now().isoformat()))
-                            conn.commit()
-                        
-                        st.success(f"✅ MSP '{nuevo_nombre}' creado exitosamente!")
-                        st.balloons()
-                        st.rerun()
+                            
+                            # Verificar si ya existe
+                            cursor.execute("SELECT COUNT(*) FROM msps_exo WHERE msp_id = ?", (nuevo_msp_id,))
+                            if cursor.fetchone()[0] > 0:
+                                st.error(f"⚠️ Ya existe un MSP con ID '{nuevo_msp_id}'")
+                            else:
+                                cursor.execute("""
+                                    INSERT INTO msps_exo 
+                                    (msp_id, nombre, razon_social, rfc, email_contacto, 
+                                     telefono_contacto, estado, plan, max_condominios, created_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, 'activo', ?, ?, ?)
+                                """, (nuevo_msp_id, nuevo_nombre, nueva_razon, nuevo_rfc,
+                                      nuevo_email, nuevo_tel, nuevo_plan, nuevo_max_cond,
+                                      datetime.now().isoformat()))
+                                conn.commit()
+                                
+                                st.success(f"✅ MSP '{nuevo_nombre}' creado exitosamente!")
+                                st.balloons()
+                                st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error al crear MSP: {e}")
     
@@ -545,19 +551,25 @@ elif opcion == "🏘️ Gestión Condominios":
                             
                             with get_db() as conn:
                                 cursor = conn.cursor()
-                                cursor.execute("""
-                                    INSERT INTO condominios_exo 
-                                    (condominio_id, msp_id, nombre, direccion, ciudad, estado_mx, 
-                                     telefono, email, total_unidades, estado, created_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)
-                                """, (nuevo_cond_id, nuevo_msp, nuevo_nombre, nueva_direccion,
-                                      nueva_ciudad, nuevo_estado, nuevo_telefono, nuevo_email,
-                                      nuevas_unidades, datetime.now().isoformat()))
-                                conn.commit()
-                            
-                            st.success(f"✅ Condominio '{nuevo_nombre}' creado exitosamente!")
-                            st.balloons()
-                            st.rerun()
+                                
+                                # Verificar si ya existe
+                                cursor.execute("SELECT COUNT(*) FROM condominios_exo WHERE condominio_id = ?", (nuevo_cond_id,))
+                                if cursor.fetchone()[0] > 0:
+                                    st.error(f"⚠️ Ya existe un condominio con ID '{nuevo_cond_id}'")
+                                else:
+                                    cursor.execute("""
+                                        INSERT INTO condominios_exo 
+                                        (condominio_id, msp_id, nombre, direccion, ciudad, estado_mx, 
+                                         telefono, email, total_unidades, estado, created_at)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)
+                                    """, (nuevo_cond_id, nuevo_msp, nuevo_nombre, nueva_direccion,
+                                          nueva_ciudad, nuevo_estado, nuevo_telefono, nuevo_email,
+                                          nuevas_unidades, datetime.now().isoformat()))
+                                    conn.commit()
+                                    
+                                    st.success(f"✅ Condominio '{nuevo_nombre}' creado exitosamente!")
+                                    st.balloons()
+                                    st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error al crear condominio: {e}")
     
