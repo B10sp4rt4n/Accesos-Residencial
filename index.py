@@ -28,7 +28,13 @@ apply_pending_reset()
 def get_msps_list():
     """Obtener listado de MSPs desde la base de datos"""
     try:
+        import os
         from core.db import get_db
+        
+        # Debug: mostrar modo DB
+        db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
+        st.info(f"🔍 DEBUG: DB_MODE = {db_mode}")
+        
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
@@ -42,6 +48,8 @@ def get_msps_list():
             return []
     except Exception as e:
         st.error(f"Error cargando MSPs: {e}")
+        import traceback
+        st.code(traceback.format_exc())
         return []
 
 @st.cache_data(ttl=60)
