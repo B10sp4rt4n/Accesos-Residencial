@@ -229,6 +229,25 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
             "Modo Admin Local: se asume contexto de condominio fijado por otro flujo."
         )
 
+# ----------------------------------------------------------------------
+# RESUMEN DEL CONTEXTO SELECCIONADO (debajo del selector)
+# ----------------------------------------------------------------------
+st.sidebar.divider()
+
+# Mostrar confirmación visual del contexto activo
+msp_actual = st.session_state.get("msp_id")
+condo_actual = st.session_state.get("condominio_id")
+rol_actual = st.session_state.get("rol_usuario", "super_admin")
+
+if rol_actual == "super_admin":
+    st.sidebar.success("✅ **Contexto:** Super Admin (Todo)")
+elif msp_actual and condo_actual:
+    st.sidebar.success(f"✅ **MSP:** `{msp_actual}`\n\n✅ **Condominio:** `{condo_actual}`")
+elif msp_actual:
+    st.sidebar.warning(f"✅ **MSP:** `{msp_actual}`\n\n⚠️ **Condominio:** Sin seleccionar")
+else:
+    st.sidebar.warning("⚠️ **Contexto incompleto**\n\nSelecciona MSP/Condominio arriba")
+
 st.sidebar.divider()
 
 opcion = st.sidebar.radio(
