@@ -174,15 +174,25 @@ def _ui_registrar_entidad():
                 st.error("❌ El nombre es obligatorio")
             else:
                 try:
+                    # Obtener contexto multi-tenant
+                    msp_id = st.session_state.get('msp_id')
+                    condominio_id = st.session_state.get('condominio_id')
+                    
                     entidad_id, hash_entidad = crear_entidad(
                         tipo=tipo,
                         nombre=nombre,
                         identificador=identificador,
-                        atributos=atributos
+                        atributos=atributos,
+                        msp_id=msp_id,
+                        condominio_id=condominio_id
                     )
                     st.success(f"✅ Entidad registrada exitosamente")
                     st.info(f"**ID:** `{entidad_id}`")
                     st.info(f"**Hash:** `{hash_entidad[:20]}...`")
+                    if msp_id:
+                        st.info(f"**MSP:** `{msp_id}`")
+                    if condominio_id:
+                        st.info(f"**Condominio:** `{condominio_id}`")
 
                     # Botón para registrar otra
                     if st.button("➕ Registrar otra entidad"):
@@ -349,11 +359,28 @@ def _ui_consultar_entidades():
         if st.button("🔄 Actualizar lista"):
             st.rerun()
 
-    # Obtener entidades
+    # Obtener contexto multi-tenant
+    msp_id = st.session_state.get('msp_id')
+    condominio_id = st.session_state.get('condominio_id')
+    
+    # Mostrar contexto activo
+    if msp_id or condominio_id:
+        with st.expander("🔍 Filtrado por contexto", expanded=False):
+            if msp_id:
+                st.info(f"**MSP:** {msp_id}")
+            if condominio_id:
+                st.info(f"**Condominio:** {condominio_id}")
+
+    # Obtener entidades con filtrado multi-tenant
     tipo_query = None if filtro_tipo == "todos" else filtro_tipo
     estado_query = filtro_estado
 
-    entidades = obtener_entidades(tipo=tipo_query, estado=estado_query)
+    entidades = obtener_entidades(
+        tipo=tipo_query, 
+        estado=estado_query,
+        msp_id=msp_id,
+        condominio_id=condominio_id
+    )
 
     if entidades:
         st.metric("Total de entidades", len(entidades))
@@ -412,7 +439,11 @@ def _ui_consultar_entidades():
                 with col_b:
                     st.write(f"**Creado:** {entidad['fecha_creacion']}")
                     st.write(f"**Actualizado:** {entidad['fecha_actualizacion']}")
-                    st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")
+                    hash_val = entidad.get('hash_actual', '')
+                    if hash_val:
+                        st.write(f"**Hash:** `{hash_val[:16]}...`")
+                    else:
+                        st.write(f"**Hash:** `Sin hash`")
 
                 st.json(attrs)
 
@@ -464,9 +495,14 @@ def _ui_editar_entidades():
 
                 with col_info2:
                     st.write(f"**ID:** `{entidad['entidad_id']}`")
-                    st.write(f"**Hash actual:** `{entidad['hash_actual'][:20]}...`")
-                    if entidad.get('hash_previo'):
-                        st.write(f"**Hash previo:** `{entidad['hash_previo'][:20]}...`")
+                    hash_actual = entidad.get('hash_actual', '')
+                    if hash_actual:
+                        st.write(f"**Hash actual:** `{hash_actual[:20]}...`")
+                    else:
+                        st.write(f"**Hash actual:** `Sin hash`")
+                    hash_previo = entidad.get('hash_previo')
+                    if hash_previo:
+                        st.write(f"**Hash previo:** `{hash_previo[:20]}...`")
 
                 st.json(attrs)
 

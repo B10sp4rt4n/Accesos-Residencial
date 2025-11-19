@@ -20,12 +20,14 @@ orq = OrquestadorAccesos()
 #  BUSCADOR UNIVERSAL DE ENTIDADES
 #  (nombre, placa, QR, folio, teléfono, etc.)
 # ---------------------------------------------------------------------
-def buscar_entidad(query: str) -> List[Dict]:
+def buscar_entidad(query: str, msp_id=None, condominio_id=None) -> List[Dict]:
     """
-    Busca entidades por cualquier criterio
+    Busca entidades por cualquier criterio con filtrado multi-tenant
     
     Args:
         query: Texto a buscar (nombre, placa, folio, teléfono, etc.)
+        msp_id: Filtrar por MSP (opcional)
+        condominio_id: Filtrar por Condominio (opcional)
     
     Returns:
         Lista de entidades encontradas
@@ -34,20 +36,37 @@ def buscar_entidad(query: str) -> List[Dict]:
         return []
 
     query_like = f"%{query}%"
+    
+    # Construir query con filtrado multi-tenant
+    sql = """
+        SELECT *
+        FROM entidades
+        WHERE estado = 'activo'
+    """
+    params = []
+    
+    # Filtrado multi-tenant
+    if msp_id:
+        sql += " AND msp_id = ?"
+        params.append(msp_id)
+    
+    if condominio_id:
+        sql += " AND condominio_id = ?"
+        params.append(condominio_id)
+    
+    sql += """
+        AND (
+            entidad_id LIKE ?
+            OR tipo LIKE ?
+            OR atributos LIKE ?
+        )
+        ORDER BY fecha_creacion DESC
+        LIMIT 20
+    """
+    params.extend([query_like, query_like, query_like])
 
     with get_db() as db:
-        rows = db.execute("""
-            SELECT *
-            FROM entidades
-            WHERE estado = 'activo'
-              AND (
-                  entidad_id LIKE ?
-                  OR tipo LIKE ?
-                  OR atributos LIKE ?
-              )
-            ORDER BY fecha_creacion DESC
-            LIMIT 20
-        """, (query_like, query_like, query_like)).fetchall()
+        rows = db.execute(sql, tuple(params)).fetchall()
 
     entidades = []
     for row in rows:
@@ -182,7 +201,11 @@ def _vista_registro_acceso():
     )
     
     if busqueda:
-        resultados = buscar_entidad(busqueda)
+        # Obtener contexto multi-tenant
+        msp_id = st.session_state.get('msp_id')
+        condominio_id = st.session_state.get('condominio_id')
+        
+        resultados = buscar_entidad(busqueda, msp_id=msp_id, condominio_id=condominio_id)
         
         if resultados:
             st.success(f"✅ {len(resultados)} entidad(es) encontrada(s)")
@@ -245,7 +268,11 @@ def _vista_registro_acceso():
                         
                         st.write(f"**Nombre:** {attrs.get('nombre', 'N/A')}")
                         st.write(f"**Identificador:** {attrs.get('identificador', 'N/A')}")
-                        st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")
+                        hash_val = entidad.get('hash_actual', '')
+                        if hash_val:
+                            st.write(f"**Hash:** `{hash_val[:16]}...`")
+                        else:
+                            st.write(f"**Hash:** `Sin hash`")
                     
                     # Atributos completos
                     st.json(attrs)

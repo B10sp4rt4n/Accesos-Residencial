@@ -14,15 +14,17 @@ from core.hashing import hash_evento
 # Crear una nueva entidad
 # ------------------------------------------------------------------
 
-def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
+def crear_entidad(tipo, nombre=None, identificador=None, atributos=None, msp_id=None, condominio_id=None):
     """
-    Crea una nueva entidad en el sistema AUP-EXO
+    Crea una nueva entidad en el sistema AUP-EXO con contexto multi-tenant
     
     Args:
         tipo: Tipo de entidad (persona, vehiculo, visita, proveedor, etc.)
         nombre: Nombre descriptivo de la entidad
         identificador: Identificador único (placa, folio, teléfono, etc.)
         atributos: Diccionario con atributos adicionales
+        msp_id: ID del MSP (contexto multi-tenant)
+        condominio_id: ID del Condominio (contexto multi-tenant)
     
     Returns:
         Tupla (entidad_id, hash)
@@ -49,9 +51,10 @@ def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
         db.execute("""
             INSERT INTO entidades (
                 entidad_id, tipo, atributos, hash_actual, 
-                fecha_creacion, fecha_actualizacion, estado
+                fecha_creacion, fecha_actualizacion, estado,
+                msp_id, condominio_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, 'activo')
+            VALUES (?, ?, ?, ?, ?, ?, 'activo', ?, ?)
         """, (
             entidad_id,
             tipo,
@@ -62,7 +65,9 @@ def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
             }),
             entidad_hash,
             timestamp,
-            timestamp
+            timestamp,
+            msp_id,
+            condominio_id
         ))
 
     return entidad_id, entidad_hash
@@ -72,19 +77,30 @@ def crear_entidad(tipo, nombre=None, identificador=None, atributos=None):
 # Obtener todas las entidades
 # ------------------------------------------------------------------
 
-def obtener_entidades(tipo=None, estado='activo'):
+def obtener_entidades(tipo=None, estado='activo', msp_id=None, condominio_id=None):
     """
-    Obtiene entidades del sistema
+    Obtiene entidades del sistema con filtrado multi-tenant
     
     Args:
         tipo: Filtrar por tipo de entidad (opcional)
         estado: Filtrar por estado (activo/inactivo/todos)
+        msp_id: Filtrar por MSP (opcional, None = todos)
+        condominio_id: Filtrar por Condominio (opcional, None = todos)
     
     Returns:
         Lista de entidades como diccionarios
     """
     query = "SELECT * FROM entidades WHERE 1=1"
     params = []
+
+    # Filtrado multi-tenant
+    if msp_id:
+        query += " AND msp_id = ?"
+        params.append(msp_id)
+    
+    if condominio_id:
+        query += " AND condominio_id = ?"
+        params.append(condominio_id)
 
     if tipo:
         query += " AND tipo = ?"
@@ -434,7 +450,11 @@ def ui_gestion_entidades():
                     with col_b:
                         st.write(f"**Creado:** {entidad['fecha_creacion']}")
                         st.write(f"**Actualizado:** {entidad['fecha_actualizacion']}")
-                        st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")
+                        hash_val = entidad.get('hash_actual', '')
+                        if hash_val:
+                            st.write(f"**Hash:** `{hash_val[:16]}...`")
+                        else:
+                            st.write(f"**Hash:** `Sin hash`")
                     
                     st.json(attrs)
         else:
