@@ -375,9 +375,21 @@ def _ui_consultar_entidades():
 
         # Mostrar tabla expandible
         for entidad in entidades:
-            attrs = entidad.get('atributos', {})
-            nombre = attrs.get('nombre', 'Sin nombre')
-            identificador = attrs.get('identificador', 'Sin ID')
+            # Parsear atributos JSON, manejar casos de NULL o cadena vacía
+            atributos_raw = entidad.get('atributos')
+            if atributos_raw:
+                try:
+                    if isinstance(atributos_raw, str):
+                        attrs = json.loads(atributos_raw)
+                    else:
+                        attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                except (json.JSONDecodeError, TypeError):
+                    attrs = {}
+            else:
+                attrs = {}
+            
+            nombre = attrs.get('nombre', 'Sin nombre') if attrs else 'Sin nombre'
+            identificador = attrs.get('identificador', 'Sin ID') if attrs else 'Sin ID'
             tipo = entidad['tipo']
 
             # Icono por tipo
@@ -428,7 +440,18 @@ def _ui_editar_entidades():
         if entidad:
             st.success(f"✅ Entidad encontrada: **{entidad['tipo'].upper()}**")
 
-            attrs = entidad.get('atributos', {})
+            # Parsear atributos JSON, manejar casos de NULL o cadena vacía
+            atributos_raw = entidad.get('atributos')
+            if atributos_raw:
+                try:
+                    if isinstance(atributos_raw, str):
+                        attrs = json.loads(atributos_raw)
+                    else:
+                        attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                except (json.JSONDecodeError, TypeError):
+                    attrs = {}
+            else:
+                attrs = {}
 
             # Mostrar información actual
             with st.expander("📋 Información actual", expanded=True):

@@ -190,7 +190,19 @@ def _vista_registro_acceso():
             # Crear opciones para selectbox
             opciones = {}
             for r in resultados:
-                attrs = r.get('atributos', {})
+                # Parse atributos safely (puede ser None, string JSON, o dict)
+                atributos_raw = r.get('atributos')
+                if atributos_raw:
+                    try:
+                        if isinstance(atributos_raw, str):
+                            attrs = json.loads(atributos_raw)
+                        else:
+                            attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                    except (json.JSONDecodeError, TypeError):
+                        attrs = {}
+                else:
+                    attrs = {}
+                
                 nombre = attrs.get('nombre', 'Sin nombre')
                 identificador = attrs.get('identificador', 'Sin ID')
                 tipo = r['tipo'].upper()
@@ -218,7 +230,19 @@ def _vista_registro_acceso():
                         st.write(f"**Estado:** {entidad['estado']}")
                     
                     with col_ent2:
-                        attrs = entidad.get('atributos', {})
+                        # Parse atributos safely (puede ser None, string JSON, o dict)
+                        atributos_raw = entidad.get('atributos')
+                        if atributos_raw:
+                            try:
+                                if isinstance(atributos_raw, str):
+                                    attrs = json.loads(atributos_raw)
+                                else:
+                                    attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                            except (json.JSONDecodeError, TypeError):
+                                attrs = {}
+                        else:
+                            attrs = {}
+                        
                         st.write(f"**Nombre:** {attrs.get('nombre', 'N/A')}")
                         st.write(f"**Identificador:** {attrs.get('identificador', 'N/A')}")
                         st.write(f"**Hash:** `{entidad['hash_actual'][:16]}...`")

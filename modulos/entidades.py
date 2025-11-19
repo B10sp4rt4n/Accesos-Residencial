@@ -206,8 +206,19 @@ def actualizar_entidad(entidad_id, nombre=None, identificador=None, atributos=No
     if not entidad_actual:
         raise ValueError(f"Entidad {entidad_id} no encontrada")
     
-    # Mezclar atributos actuales con nuevos
-    atributos_actuales = entidad_actual.get('atributos', {})
+    # Parse atributos actuales safely (puede ser None, string JSON, o dict)
+    atributos_raw = entidad_actual.get('atributos')
+    if atributos_raw:
+        try:
+            if isinstance(atributos_raw, str):
+                atributos_actuales = json.loads(atributos_raw)
+            else:
+                atributos_actuales = atributos_raw if isinstance(atributos_raw, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            atributos_actuales = {}
+    else:
+        atributos_actuales = {}
+    
     atributos_nuevos = atributos or {}
     
     if nombre:
@@ -396,7 +407,19 @@ def ui_gestion_entidades():
             
             # Mostrar en tabla
             for entidad in entidades:
-                attrs = entidad.get('atributos', {})
+                # Parse atributos safely (puede ser None, string JSON, o dict)
+                atributos_raw = entidad.get('atributos')
+                if atributos_raw:
+                    try:
+                        if isinstance(atributos_raw, str):
+                            attrs = json.loads(atributos_raw)
+                        else:
+                            attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                    except (json.JSONDecodeError, TypeError):
+                        attrs = {}
+                else:
+                    attrs = {}
+                
                 nombre_display = attrs.get('nombre', 'Sin nombre')
                 id_display = attrs.get('identificador', 'Sin ID')
                 
@@ -428,11 +451,23 @@ def ui_gestion_entidades():
             
             if entidad:
                 st.success(f"✅ Entidad encontrada: **{entidad['tipo']}**")
-                st.json(entidad.get('atributos', {}))
+                
+                # Parse atributos safely (puede ser None, string JSON, o dict)
+                atributos_raw = entidad.get('atributos')
+                if atributos_raw:
+                    try:
+                        if isinstance(atributos_raw, str):
+                            attrs = json.loads(atributos_raw)
+                        else:
+                            attrs = atributos_raw if isinstance(atributos_raw, dict) else {}
+                    except (json.JSONDecodeError, TypeError):
+                        attrs = {}
+                else:
+                    attrs = {}
+                
+                st.json(attrs)
                 
                 st.markdown("---")
-                
-                attrs = entidad.get('atributos', {})
                 nuevo_nombre = st.text_input(
                     "Nuevo nombre (dejar vacío para no cambiar)",
                     value=attrs.get('nombre', '')
