@@ -98,12 +98,12 @@ except Exception as e:
         st.error(f"Error inicializando base de datos: {init_error}")
 
 # Inicializar session state para contexto multi-tenant
-if 'msp_id' not in st.session_state:
-    st.session_state.msp_id = None
-if 'condominio_id' not in st.session_state:
-    st.session_state.condominio_id = None
-if 'rol_usuario' not in st.session_state:
-    st.session_state.rol_usuario = 'super_admin'  # Por defecto Super Admin
+if "msp_id" not in st.session_state:
+    st.session_state["msp_id"] = None
+if "condominio_id" not in st.session_state:
+    st.session_state["condominio_id"] = None
+if "rol_usuario" not in st.session_state:
+    st.session_state["rol_usuario"] = "super_admin"
 
 # Sidebar - Contexto Multi-Tenant
 st.sidebar.title("🏢 AX-S Multi-Tenant")
@@ -114,105 +114,120 @@ st.sidebar.divider()
 with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
     rol = st.selectbox(
         "Rol:",
-        ["Super Admin (DS)", "MSP Admin (DD)", "Condominio Admin (SE)", "Admin Local (NO)"],
+        [
+            "Super Admin (DS)",
+            "MSP Admin (DD)",
+            "Condominio Admin (SE)",
+            "Admin Local (NO)",
+        ],
+        key="rol_selector",
         help="Selecciona tu nivel de acceso",
-        key="rol_selector"
     )
-    
-    if "Super Admin" in rol:
-        st.session_state.rol_usuario = 'super_admin'
-        st.info("🌟 Acceso total al sistema")
-        st.session_state.msp_id = None
-        st.session_state.condominio_id = None
-        
-    elif "MSP Admin" in rol:
-        st.session_state.rol_usuario = 'msp_admin'
-        
+
+    # SUPER ADMIN: sin contexto, ve todo
+    if rol.startswith("Super Admin"):
+        st.session_state["rol_usuario"] = "super_admin"
+        st.session_state["msp_id"] = None
+        st.session_state["condominio_id"] = None
+        st.info("🌟 Acceso total sin fijar MSP/Condominio.")
+
+    # MSP ADMIN: selecciona MSP y Condominio
+    elif rol.startswith("MSP Admin"):
+        st.session_state["rol_usuario"] = "msp_admin"
+
         # MSP
-        lista_msps = safe_list(get_msps_list())
-        
-        # Crear diccionario para mapear nombre -> id
-        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
-        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
-        
-        msp_selected = st.selectbox(
-            "MSP",
-            msp_options,
-            key="msp",
-            on_change=lambda: reset_lower("msp")
-        )
-        
-        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
-        
-    elif "Condominio Admin" in rol:
-        st.session_state.rol_usuario = 'condominio_admin'
-        
-        # MSP
-        lista_msps = safe_list(get_msps_list())
-        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
-        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
-        
-        msp_selected = st.selectbox(
-            "MSP",
-            msp_options,
-            key="msp",
-            on_change=lambda: reset_lower("msp")
-        )
-        
-        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
-        
-        # CONDOMINIO
-        if st.session_state.get("msp_id"):
-            lista_condos = safe_list(get_condominios_by_msp(st.session_state["msp_id"]))
+        msps = safe_list(get_msps_list())
+        if not msps:
+            st.warning("No hay MSPs activos configurados en la base.")
+            st.session_state["msp_id"] = None
+            st.session_state["condominio_id"] = None
         else:
-            lista_condos = []
-        
-        condo_dict = {f"{condo_id} - {nombre}": condo_id for condo_id, nombre in lista_condos}
-        condo_options = ["-- Seleccionar Condominio --"] + list(condo_dict.keys())
-        
-        condo_selected = st.selectbox(
-            "Condominio",
-            condo_options,
-            key="condominio",
-            on_change=lambda: reset_lower("condominio")
-        )
-        
-        st.session_state.condominio_id = condo_dict.get(condo_selected) if condo_selected != "-- Seleccionar Condominio --" else None
-        
-    else:  # Admin Local
-        st.session_state.rol_usuario = 'admin_local'
-        
-        # MSP
-        lista_msps = safe_list(get_msps_list())
-        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
-        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
-        
-        msp_selected = st.selectbox(
+            msp_labels = ["-- Seleccionar MSP --"] + [
+                f"{msp_id} - {nombre}" for msp_id, nombre in msps
+            ]
+
+            msp_label = st.selectbox(
+                "MSP",
+                msp_labels,
+                key="ctx_msp_admin_msp",
+                on_change=lambda: reset_lower("msp"),
+            )
+
+            if msp_label != "-- Seleccionar MSP --":
+                st.session_state["msp_id"] = msp_label.split(" - ", 1)[0]
+            else:
+                st.session_state["msp_id"] = None
+
+            # CONDOMINIO
+            if st.session_state["msp_id"]:
+                condos = safe_list(get_condominios_by_msp(st.session_state["msp_id"]))
+            else:
+                condos = []
+
+            condo_labels = ["-- Seleccionar Condominio --"] + [
+                f"{cid} - {nombre}" for cid, nombre in condos
+            ]
+
+            condo_label = st.selectbox(
+                "Condominio",
+                condo_labels,
+                key="ctx_msp_admin_condo",
+                on_change=lambda: reset_lower("condominio"),
+            )
+
+            if condo_label != "-- Seleccionar Condominio --":
+                st.session_state["condominio_id"] = condo_label.split(" - ", 1)[0]
+            else:
+                st.session_state["condominio_id"] = None
+
+    # CONDOMINIO ADMIN: ya conoces el MSP, solo fija condominio
+    elif rol.startswith("Condominio Admin"):
+        st.session_state["rol_usuario"] = "condominio_admin"
+
+        msps = safe_list(get_msps_list())
+        msp_labels = ["-- Seleccionar MSP --"] + [
+            f"{msp_id} - {nombre}" for msp_id, nombre in msps
+        ]
+
+        msp_label = st.selectbox(
             "MSP",
-            msp_options,
-            key="msp",
-            on_change=lambda: reset_lower("msp")
+            msp_labels,
+            key="ctx_condo_admin_msp",
+            on_change=lambda: reset_lower("msp"),
         )
-        
-        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
-        
-        # CONDOMINIO
-        if st.session_state.get("msp_id"):
-            lista_condos = safe_list(get_condominios_by_msp(st.session_state["msp_id"]))
+
+        if msp_label != "-- Seleccionar MSP --":
+            st.session_state["msp_id"] = msp_label.split(" - ", 1)[0]
         else:
-            lista_condos = []
-        
-        condo_dict = {f"{condo_id} - {nombre}": condo_id for condo_id, nombre in lista_condos}
-        condo_options = ["-- Seleccionar Condominio --"] + list(condo_dict.keys())
-        
-        condo_selected = st.selectbox(
+            st.session_state["msp_id"] = None
+
+        if st.session_state["msp_id"]:
+            condos = safe_list(get_condominios_by_msp(st.session_state["msp_id"]))
+        else:
+            condos = []
+
+        condo_labels = ["-- Seleccionar Condominio --"] + [
+            f"{cid} - {nombre}" for cid, nombre in condos
+        ]
+
+        condo_label = st.selectbox(
             "Condominio",
-            condo_options,
-            key="condominio",
-            on_change=lambda: reset_lower("condominio")
+            condo_labels,
+            key="ctx_condo_admin_condo",
+            on_change=lambda: reset_lower("condominio"),
         )
-        
-        st.session_state.condominio_id = condo_dict.get(condo_selected) if condo_selected != "-- Seleccionar Condominio --" else None
+
+        if condo_label != "-- Seleccionar Condominio --":
+            st.session_state["condominio_id"] = condo_label.split(" - ", 1)[0]
+        else:
+            st.session_state["condominio_id"] = None
+
+    # ADMIN LOCAL: se asume condominio ya fijado por otro flujo
+    else:
+        st.session_state["rol_usuario"] = "admin_local"
+        st.info(
+            "Modo Admin Local: se asume contexto de condominio fijado por otro flujo."
+        )
 
 st.sidebar.divider()
 
