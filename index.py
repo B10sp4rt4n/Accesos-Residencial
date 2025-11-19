@@ -10,7 +10,7 @@ from modulos.entidades_ui import ui_entidades
 from modulos.eventos import ui_eventos
 from modulos.politicas import ui_politicas
 from modulos.dashboard import ui_dashboard
-from ui_state import reset_lower, safe_list
+from ui_state import reset_lower, safe_list, apply_pending_reset
 
 # Configuración de página (debe estar primero)
 st.set_page_config(
@@ -19,6 +19,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Aplicar resets pendientes del ciclo anterior
+apply_pending_reset()
 
 # Funciones de caché para datos dinámicos
 @st.cache_data(ttl=60)
@@ -127,46 +130,36 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
         
         # MSP
         lista_msps = safe_list(get_msps_list())
-        if lista_msps:
-            # Formato: [(id, nombre), ...]
-            msp_options = [("", "-- Seleccionar MSP --")] + lista_msps
-            msp_display = [nombre for _, nombre in msp_options]
-            
-            msp_selected = st.selectbox(
-                "MSP",
-                msp_display,
-                key="msp",
-                on_change=lambda: reset_lower("msp")
-            )
-            
-            # Obtener ID del MSP seleccionado
-            msp_idx = msp_display.index(msp_selected) if msp_selected in msp_display else 0
-            st.session_state.msp_id = msp_options[msp_idx][0] if msp_idx > 0 else None
-        else:
-            st.warning("⚠️ No hay MSPs disponibles")
-            st.session_state.msp_id = None
+        
+        # Crear diccionario para mapear nombre -> id
+        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
+        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
+        
+        msp_selected = st.selectbox(
+            "MSP",
+            msp_options,
+            key="msp",
+            on_change=lambda: reset_lower("msp")
+        )
+        
+        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
         
     elif "Condominio Admin" in rol:
         st.session_state.rol_usuario = 'condominio_admin'
         
         # MSP
         lista_msps = safe_list(get_msps_list())
-        if lista_msps:
-            msp_options = [("", "-- Seleccionar MSP --")] + lista_msps
-            msp_display = [nombre for _, nombre in msp_options]
-            
-            msp_selected = st.selectbox(
-                "MSP",
-                msp_display,
-                key="msp",
-                on_change=lambda: reset_lower("msp")
-            )
-            
-            msp_idx = msp_display.index(msp_selected) if msp_selected in msp_display else 0
-            st.session_state.msp_id = msp_options[msp_idx][0] if msp_idx > 0 else None
-        else:
-            st.warning("⚠️ No hay MSPs disponibles")
-            st.session_state.msp_id = None
+        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
+        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
+        
+        msp_selected = st.selectbox(
+            "MSP",
+            msp_options,
+            key="msp",
+            on_change=lambda: reset_lower("msp")
+        )
+        
+        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
         
         # CONDOMINIO
         if st.session_state.get("msp_id"):
@@ -174,46 +167,34 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
         else:
             lista_condos = []
         
-        if lista_condos:
-            cond_options = [("", "-- Seleccionar Condominio --")] + lista_condos
-            cond_display = [nombre for _, nombre in cond_options]
-            
-            cond_selected = st.selectbox(
-                "Condominio",
-                cond_display,
-                key="condominio",
-                on_change=lambda: reset_lower("condominio")
-            )
-            
-            cond_idx = cond_display.index(cond_selected) if cond_selected in cond_display else 0
-            st.session_state.condominio_id = cond_options[cond_idx][0] if cond_idx > 0 else None
-        elif st.session_state.get("msp_id"):
-            st.warning(f"⚠️ No hay condominios para este MSP")
-            st.session_state.condominio_id = None
-        else:
-            st.session_state.condominio_id = None
+        condo_dict = {f"{condo_id} - {nombre}": condo_id for condo_id, nombre in lista_condos}
+        condo_options = ["-- Seleccionar Condominio --"] + list(condo_dict.keys())
+        
+        condo_selected = st.selectbox(
+            "Condominio",
+            condo_options,
+            key="condominio",
+            on_change=lambda: reset_lower("condominio")
+        )
+        
+        st.session_state.condominio_id = condo_dict.get(condo_selected) if condo_selected != "-- Seleccionar Condominio --" else None
         
     else:  # Admin Local
         st.session_state.rol_usuario = 'admin_local'
         
         # MSP
         lista_msps = safe_list(get_msps_list())
-        if lista_msps:
-            msp_options = [("", "-- Seleccionar MSP --")] + lista_msps
-            msp_display = [nombre for _, nombre in msp_options]
-            
-            msp_selected = st.selectbox(
-                "MSP",
-                msp_display,
-                key="msp",
-                on_change=lambda: reset_lower("msp")
-            )
-            
-            msp_idx = msp_display.index(msp_selected) if msp_selected in msp_display else 0
-            st.session_state.msp_id = msp_options[msp_idx][0] if msp_idx > 0 else None
-        else:
-            st.warning("⚠️ No hay MSPs disponibles")
-            st.session_state.msp_id = None
+        msp_dict = {f"{msp_id} - {nombre}": msp_id for msp_id, nombre in lista_msps}
+        msp_options = ["-- Seleccionar MSP --"] + list(msp_dict.keys())
+        
+        msp_selected = st.selectbox(
+            "MSP",
+            msp_options,
+            key="msp",
+            on_change=lambda: reset_lower("msp")
+        )
+        
+        st.session_state.msp_id = msp_dict.get(msp_selected) if msp_selected != "-- Seleccionar MSP --" else None
         
         # CONDOMINIO
         if st.session_state.get("msp_id"):
@@ -221,24 +202,17 @@ with st.sidebar.expander("🔐 Contexto de Trabajo", expanded=True):
         else:
             lista_condos = []
         
-        if lista_condos:
-            cond_options = [("", "-- Seleccionar Condominio --")] + lista_condos
-            cond_display = [nombre for _, nombre in cond_options]
-            
-            cond_selected = st.selectbox(
-                "Condominio",
-                cond_display,
-                key="condominio",
-                on_change=lambda: reset_lower("condominio")
-            )
-            
-            cond_idx = cond_display.index(cond_selected) if cond_selected in cond_display else 0
-            st.session_state.condominio_id = cond_options[cond_idx][0] if cond_idx > 0 else None
-        elif st.session_state.get("msp_id"):
-            st.warning(f"⚠️ No hay condominios para este MSP")
-            st.session_state.condominio_id = None
-        else:
-            st.session_state.condominio_id = None
+        condo_dict = {f"{condo_id} - {nombre}": condo_id for condo_id, nombre in lista_condos}
+        condo_options = ["-- Seleccionar Condominio --"] + list(condo_dict.keys())
+        
+        condo_selected = st.selectbox(
+            "Condominio",
+            condo_options,
+            key="condominio",
+            on_change=lambda: reset_lower("condominio")
+        )
+        
+        st.session_state.condominio_id = condo_dict.get(condo_selected) if condo_selected != "-- Seleccionar Condominio --" else None
 
 st.sidebar.divider()
 
