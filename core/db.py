@@ -61,6 +61,12 @@ def get_db():
                         password=st.secrets['PG_PASSWORD'],
                         port=int(st.secrets.get('PG_PORT', 5432))
                     )
+                    # Forzar autocommit para evitar estados de transacción que bloqueen SELECT posteriores
+                    try:
+                        conn.autocommit = True
+                        print("🔧 DEBUG: autocommit habilitado (secrets)")
+                    except Exception as ac_err:
+                        print(f"⚠️  No se pudo habilitar autocommit: {ac_err}")
                     use_postgres = True
                     print("✅ Conectado a PostgreSQL via Streamlit secrets")
                 finally:
@@ -88,6 +94,11 @@ def get_db():
                 
                 try:
                     conn = psycopg2.connect(st.secrets['DATABASE_URL'])
+                    try:
+                        conn.autocommit = True
+                        print("🔧 DEBUG: autocommit habilitado (DATABASE_URL)")
+                    except Exception as ac_err:
+                        print(f"⚠️  No se pudo habilitar autocommit: {ac_err}")
                     use_postgres = True
                     print("✅ Conectado a PostgreSQL via DATABASE_URL")
                 finally:

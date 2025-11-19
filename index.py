@@ -34,84 +34,47 @@ st.set_page_config(
     page_title="AX-S Multi-Tenant - AUP-EXO",
     page_icon="🏢",
     layout="wide",
-    initial_sidebar_state="expanded"
 )
-
-# Inicializar tablas multi-tenant solo una vez por sesión
-try:
-    from init_db_cloud import init_tables
-    if 'MULTI_INIT_DONE' not in st.session_state:
-        init_tables()
-        st.session_state['MULTI_INIT_DONE'] = True
-except Exception as e:
-    st.warning(f"⚠️ No se pudieron inicializar tablas multi-tenant: {e}")
-
-# Aplicar resets pendientes del ciclo anterior
-apply_pending_reset()
-
-# Funciones de caché para datos dinámicos
-@st.cache_data(ttl=60)
-def get_msps_list():
-    """Obtener listado de MSPs desde la base de datos (seguro frente a 'no results to fetch')."""
-    from core.db import get_db
-    import os
-    try:
+        """Versión simplificada sin caché; conexión directa en modo PostgreSQL con autocommit."""
+        import os
         db_mode = os.getenv('DB_MODE') or (hasattr(st, 'secrets') and st.secrets.get('DB_MODE'))
-        logger.debug(f"[get_msps_list] Inicio db_mode={db_mode}")
-        with get_db() as conn:
-            cursor = conn.cursor()
-            logger.debug(f"[get_msps_list] Cursor type={type(cursor)}")
-            query = "SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre"
-            cursor.execute(query)
-            logger.debug("[get_msps_list] Query ejecutada")
-            # Algunos entornos han mostrado ProgrammingError: no results to fetch; validar antes
-            try:
-                # Debug profundo
-                if getattr(cursor, 'description', None) is None:
-                    st.warning("⚠️ SELECT sin description; posible cursor incorrecto")
-                    logger.warning("[get_msps_list] cursor.description es None tras SELECT")
-                    rows = []
-                else:
-                    rows = cursor.fetchall()
-                    logger.debug(f"[get_msps_list] fetchall rows={len(rows)}")
-            except Exception as fe:
-                # Si ocurre el error específico, tratamos como lista vacía y logueamos
-                if 'no results to fetch' in str(fe):
-                    st.warning("⚠️ Cursor sin result set tras SELECT; reintentar...")
-                    logger.warning(f"[get_msps_list] 'no results to fetch' fe={fe}; reintentando")
-                    # Reintentar una vez con nuevo cursor
-                    cursor = conn.cursor()
-                    cursor.execute(query)
-                    if getattr(cursor, 'description', None) is None:
-                        rows = []
-                        logger.warning("[get_msps_list] Segundo intento también sin description")
-                    else:
-                        rows = cursor.fetchall()
-                        logger.debug(f"[get_msps_list] Segundo intento rows={len(rows)}")
-                else:
-                    logger.exception("[get_msps_list] Excepción inesperada en fetchall")
-                    raise fe
-            if rows:
-                first = rows[0]
-                if isinstance(first, dict):
-                    logger.debug("[get_msps_list] Formato RealDictRow detectado")
-                    return [(r['msp_id'], r['nombre']) for r in rows]
-                else:
-                    logger.debug("[get_msps_list] Formato tuple/Row detectado")
-                    return [(r[0], r[1]) for r in rows]
-            return []
-    except Exception as e:
-        # Fallback directo a psycopg2 si estamos en PostgreSQL
+        logger.debug(f"[get_msps_list] SIMPLE db_mode={db_mode}")
         try:
-            if (hasattr(st, 'secrets') and st.secrets.get('DB_MODE') in ['postgres','postgresql']):
+            if db_mode in ['postgres','postgresql'] and hasattr(st, 'secrets'):
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
-                logger.warning(f"[get_msps_list] Fallback directo psycopg2 por excepción: {e}")
                 conn = psycopg2.connect(
                     host=st.secrets['PG_HOST'],
                     database=st.secrets['PG_DATABASE'],
                     user=st.secrets['PG_USER'],
                     password=st.secrets['PG_PASSWORD'],
+                    port=int(st.secrets.get('PG_PORT',5432))
+                )
+                conn.autocommit = True
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado = 'activo' ORDER BY nombre")
+                rows = cur.fetchall()
+                conn.close()
+                logger.debug(f"[get_msps_list] rows={len(rows)} (direct psycopg2)")
+                return [(r['msp_id'], r['nombre']) for r in rows]
+            # Fallback a wrapper
+            from core.db import get_db
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT msp_id, nombre FROM msps_exo WHERE estado='activo' ORDER BY nombre")
+                rows = cur.fetchall() if getattr(cur, 'description', None) else []
+                logger.debug(f"[get_msps_list] rows={len(rows)} (wrapper)")
+                if rows:
+                    first = rows[0]
+                    if isinstance(first, dict):
+                        return [(r['msp_id'], r['nombre']) for r in rows]
+                    else:
+                        return [(r[0], r[1]) for r in rows]
+                return []
+        except Exception as e:
+            logger.exception("[get_msps_list] Error en versión simplificada")
+            st.error(f"Error cargando MSPs: {e}")
+            return []
                     port=int(st.secrets.get('PG_PORT',5432))
                 )
                 cur = conn.cursor(cursor_factory=RealDictCursor)
